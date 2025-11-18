@@ -11,48 +11,26 @@ on:
 
 jobs:
   build_and_deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
     name: Build and Deploy Job
-    permissions:
-       id-token: write
-       contents: read
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-          lfs: false
-      - name: Install OIDC Client from Core Package
-        run: npm install @actions/core@1.6.0 @actions/http-client
-      - name: Get Id Token
-        uses: actions/github-script@v6
-        id: idtoken
-        with:
-           script: |
-               const coredemo = require('@actions/core')
-               return await coredemo.getIDToken()
-           result-encoding: string
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
-            with:
-              azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_… }} # leave as-is
-              repo_token: ${{ secrets.GITHUB_TOKEN }} # leave as-is
-              action: "upload"
-              app_location: "/"        # our index.html is in the repo root
-              output_location: "/"     # tell SWA to serve directly from root
-              api_location: ""         # no API in this repo
-              skip_app_build: true     # <-- IMPORTANT: don't try to run Oryx build
-
-
-  close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close Pull Request Job
-    steps:
-      - name: Close Pull Request
-        id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1
         with:
-          action: "close"
+          # IMPORTANT: copy this value EXACTLY from your existing file
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_XXXXXXXXXXXX }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
 
+          # Your app is just static files in the repo root
+          app_location: "/"
+          output_location: "/"
+          api_location: ""
+
+          # Turn off builds entirely
+          skip_app_build: true
+          skip_api_build: true
