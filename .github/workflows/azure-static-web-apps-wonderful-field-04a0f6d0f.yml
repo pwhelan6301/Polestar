@@ -1,3 +1,14 @@
+name: Azure Static Web Apps CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+
 jobs:
   build_and_deploy_job:
     runs-on: ubuntu-latest
@@ -10,13 +21,13 @@ jobs:
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token:${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_WONDERFUL_FIELD_04A0F6D0F }}
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_WONDERFUL_FIELD_04A0F6D0F }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: "upload"         # <-- THIS is what was missing
+          action: "upload"
 
-          app_location: "/"        # index.html is in the repo root
-          output_location: "/"     # serve from root
-          api_location: ""         # no API
+          app_location: "/"
+          output_location: "/"
+          api_location: ""
 
-          skip_app_build: true     # don't run Oryx / npm
+          skip_app_build: true
           skip_api_build: true
