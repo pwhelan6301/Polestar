@@ -18,38 +18,45 @@ async function fetchUser() {
   }
 }
 
-// --- Backend configuration (placeholder) ---
-// When you’re ready to connect to Logic Apps / APIM, put the URL here.
-const BACKEND_URL = ''; // e.g. 'https://<apim-or-logic-app-endpoint>/generate'
+// --- Backend configuration ---
+// TODO: paste your Logic App HTTP POST URL in here:
+const BACKEND_URL = 'https://prod-40.uksouth.logic.azure.com:443/workflows/6db33d3cd27b417ea9e44626967943a0/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=ZwOmLWp7EHwVaz_uYIGGGb_0m7lgZZFEuHHOXSxFRC0';
 
 async function callBackend(payload) {
-  if (!BACKEND_URL) {
-    // For now, just pretend and return a fake response
-    await new Promise(r => setTimeout(r, 800));
-    return {
-      generated_text:
-        'This is a placeholder draft. Once the backend URL is configured, this area will show the actual AI-generated content from Polestar’s Logic Apps.'
-    };
+  if (!BACKEND_URL || BACKEND_URL.includes('YOUR-LOGIC-APP')) {
+    throw new Error('BACKEND_URL is not configured. Please set it in app.js.');
   }
 
   const res = await fetch(BACKEND_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
-      // Later: include any auth headers / tokens if needed
     },
     body: JSON.stringify(payload)
   });
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Backend error: ${res.status} ${text}`);
+  let body;
+  const ct = res.headers.get('content-type') || '';
+
+  if (ct.includes('application/json')) {
+    body = await res.json();
+  } else {
+    body = await res.text();
   }
 
-  return res.json();
+  if (!res.ok && res.status !== 202) {
+    throw new Error(
+      `Backend error: ${res.status} ${typeof body === 'string' ? body : JSON.stringify(body)}`
+    );
+  }
+
+  return {
+    status: res.status,
+    body
+  };
 }
-// Section options per document type.
-// Easy to update as your templates evolve.
+
+// --- Section options per document type ---
 const SECTION_OPTIONS = {
   IM: [
     '1.1 OVERVIEW',
@@ -74,10 +81,8 @@ const SECTION_OPTIONS = {
 function populateSectionOptions(docType, selectEl) {
   if (!selectEl) return;
 
-  // Clear existing
   selectEl.innerHTML = '';
 
-  // Always add placeholder
   const placeholder = document.createElement('option');
   placeholder.value = '';
   placeholder.textContent = 'Select section / focus…';
@@ -86,15 +91,13 @@ function populateSectionOptions(docType, selectEl) {
   const options = SECTION_OPTIONS[docType] || [];
   options.forEach(label => {
     const opt = document.createElement('option');
-    opt.value = label;      // you can switch this to an internal key later if needed
+    opt.value = label;
     opt.textContent = label;
     selectEl.appendChild(opt);
   });
 
-  // Disable if no options defined
   selectEl.disabled = options.length === 0;
 }
-
 
 // --- Form handling ---
 function initForm() {
@@ -110,17 +113,16 @@ function initForm() {
   const docTypeSelect = form.docType;
   const sectionSelect = form.sectionOrFocus;
 
-  // Populate sections whenever document type changes
+  // Update sections when document type changes
   if (docTypeSelect && sectionSelect) {
     docTypeSelect.addEventListener('change', () => {
       populateSectionOptions(docTypeSelect.value, sectionSelect);
     });
-    // initialise once on load
     populateSectionOptions(docTypeSelect.value, sectionSelect);
   }
 
   form.addEventListener('submit', async (e) => {
-    // ...
+    e.preventDefault();
 
     const docType = form.docType.value;
     if (!docType) {
@@ -129,52 +131,81 @@ function initForm() {
       return;
     }
 
+    const formIdRaw = form.formId.value;
+    const formIdParsed = formIdRaw && !Number.isNaN(Number(formIdRaw))
+      ? Number(formIdRaw)
+      : null;
+
     const payload = {
       doc_type: docType,
+      form_id: formIdParsed,
       client_name: form.clientName.value || null,
-      form_id: form.formId.value || null,
       sector: form.sector.value || null,
-      section_or_focus: form.sectionOrFocus.value || null,
+      im_section: form.sectionOrFocus.value || null,
       task_description: form.taskDescription.value || null,
       style_query: form.styleQuery.value || null,
-      extra_context: form.extraContext.value || null
+      query: form.extraContext.value || ''
     };
 
-    // Update request preview
     if (previewEl) {
       previewEl.textContent = JSON.stringify(payload, null, 2);
     }
 
-    // UI state
     submitBtn.disabled = true;
     statusEl.style.color = 'var(--text-soft)';
-    statusEl.textContent = BACKEND_URL
-      ? 'Sending request to backend…'
-      : 'Simulating request (backend URL not configured yet)…';
+    statusEl.textContent = 'Sending request to Logic App…';
     if (statusText) {
       statusText.textContent = 'Processing your request…';
     }
 
     try {
       const result = await callBackend(payload);
+      const { status, body } = result;
 
-      if (outputEl) {
-        const text = result.generated_text || JSON.stringify(result, null, 2);
-        outputEl.textContent = text;
+      let displayText;
+
+      if (status === 202) {
+        // Your orchestrator returns 202 + operationId / status
+        displayText =
+          typeof body === 'string'
+            ? body
+            : JSON.stringify(body, null, 2);
+        statusEl.style.color = 'var(--success)';
+        statusEl.textContent =
+          'Request accepted by Logic App (202). The document will be generated in the background.';
+      } else if (status === 200) {
+        // If you ever return the draft text directly
+        const generated = body?.generated_text || body;
+        displayText =
+          typeof generated === 'string'
+            ? generated
+            : JSON.stringify(generated, null, 2);
+        statusEl.style.color = 'var(--success)';
+        statusEl.textContent = 'Draft generated successfully.';
+      } else {
+        displayText = JSON.stringify(body, null, 2);
+        statusEl.style.color = 'var(--text-soft)';
+        statusEl.textContent = `Received response with status ${status}.`;
       }
 
-      statusEl.style.color = 'var(--success)';
-      statusEl.textContent = 'Draft generated successfully.';
+      if (outputEl) {
+        outputEl.textContent = displayText;
+      }
+
       if (statusText) {
         statusText.textContent =
-          'Draft generated. Review the text on the right and refine it before sharing.';
+          'Request completed. Check the status and output on the right.';
       }
     } catch (err) {
       console.error(err);
       statusEl.style.color = 'var(--danger)';
-      statusEl.textContent = 'There was a problem generating the draft.';
+      statusEl.textContent = 'There was a problem calling the Logic App.';
       if (statusText) {
-        statusText.textContent = 'The request failed. Please try again or contact the AI tooling team.';
+        statusText.textContent =
+          'The request failed. Please try again or contact the AI tooling team.';
+      }
+      if (outputEl) {
+        outputEl.textContent = err.message || String(err);
       }
     } finally {
       submitBtn.disabled = false;
@@ -182,6 +213,6 @@ function initForm() {
   });
 }
 
-// --- Initialise everything on load ---
+// --- Initialise on load ---
 fetchUser();
 initForm();
