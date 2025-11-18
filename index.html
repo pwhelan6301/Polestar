@@ -93,19 +93,21 @@
 
           <!-- Sector & document focus -->
           <div class="field-row">
-            <div class="field-group">
-              <label for="sector">Sector</label>
-              <input
-                type="text"
-                id="sector"
-                name="sector"
-                placeholder="e.g. Software, Media & Technology"
-                autocomplete="off"
-              />
+           <div class="field-group">
+             <label for="sector">Sector</label>
+             <select id="sector" name="sector">
+                <option value="">Select sector…</option>
+                <option value="Business Services">Business Services</option>
+                <option value="Software, Media & Technology">Software, Media & Technology</option>
+                <option value="Sustainability">Sustainability</option>
+                <option value="Manufacturing & Industrial">Manufacturing & Industrial</option>
+                <option value="Health & Education">Health & Education</option>
+              </select>
               <p class="field-hint">
-                Used especially for sector valuations and IMs.
+                  Used especially for sector valuations and IMs.
               </p>
-            </div>
+             </div>
+
 
             <div class="field-group">
               <label for="sectionOrFocus">Section / focus</label>
