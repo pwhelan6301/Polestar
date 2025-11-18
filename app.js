@@ -48,6 +48,53 @@ async function callBackend(payload) {
 
   return res.json();
 }
+// Section options per document type.
+// Easy to update as your templates evolve.
+const SECTION_OPTIONS = {
+  IM: [
+    '1.1 OVERVIEW',
+    '1.2 MARKET',
+    '1.5 PEOPLE',
+    '1.6 MANAGEMENT AND SYSTEMS',
+    '1.7 CLIENT',
+    '1.8 FINANCIAL',
+    '1.9 REASON FOR TRANSACTION'
+  ],
+  SectorValuation: [
+    'Overview',
+    'Market context',
+    'Trading comparables',
+    'Transaction comparables',
+    'Valuation summary',
+    'Key themes & risks'
+  ]
+  // NDA, Teaser, Blog, Deck will be added here later
+};
+
+function populateSectionOptions(docType, selectEl) {
+  if (!selectEl) return;
+
+  // Clear existing
+  selectEl.innerHTML = '';
+
+  // Always add placeholder
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Select section / focus…';
+  selectEl.appendChild(placeholder);
+
+  const options = SECTION_OPTIONS[docType] || [];
+  options.forEach(label => {
+    const opt = document.createElement('option');
+    opt.value = label;      // you can switch this to an internal key later if needed
+    opt.textContent = label;
+    selectEl.appendChild(opt);
+  });
+
+  // Disable if no options defined
+  selectEl.disabled = options.length === 0;
+}
+
 
 // --- Form handling ---
 function initForm() {
@@ -60,8 +107,20 @@ function initForm() {
 
   if (!form) return;
 
+  const docTypeSelect = form.docType;
+  const sectionSelect = form.sectionOrFocus;
+
+  // Populate sections whenever document type changes
+  if (docTypeSelect && sectionSelect) {
+    docTypeSelect.addEventListener('change', () => {
+      populateSectionOptions(docTypeSelect.value, sectionSelect);
+    });
+    // initialise once on load
+    populateSectionOptions(docTypeSelect.value, sectionSelect);
+  }
+
   form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+    // ...
 
     const docType = form.docType.value;
     if (!docType) {
