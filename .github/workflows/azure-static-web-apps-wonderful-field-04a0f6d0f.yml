@@ -22,7 +22,7 @@ jobs:
         uses: Azure/static-web-apps-deploy@v1
         with:
           # IMPORTANT: copy this value EXACTLY from your existing file
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_XXXXXXXXXXXX }}
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_WONDERFUL_FIELD_04A0F6D0F }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
 
@@ -34,3 +34,4 @@ jobs:
           # Turn off builds entirely
           skip_app_build: true
           skip_api_build: true
+
