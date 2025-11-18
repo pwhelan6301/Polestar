@@ -23,7 +23,7 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: radial-gradient(circle at top left, #202020 0, #101010 40%, #050505 100%);
+  background: radial-gradient(circle at top left, #2f2f2f 0, #1c1c1c 40%, #101010 100%);
   color: var(--text-main);
   font-family: var(--font-main);
   -webkit-font-smoothing: antialiased;
