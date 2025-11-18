@@ -1,20 +1,226 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Polestar IM Generator</title>
-  <link rel="stylesheet" href="styles.css"/>
+  <title>Polestar Document Drafter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <h1>Polestar IM Generator</h1>
-  <p>Frontend successfully deployed.</p>
+  <header class="top-bar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-text">
+        <span class="brand-title">Polestar</span>
+        <span class="brand-subtitle">Document Drafter</span>
+      </div>
+    </div>
+    <div class="user-area">
+      <span id="user-info" class="user-info">Signed in</span>
+      <a href="/.auth/logout" class="link-ghost">Sign out</a>
+    </div>
+  </header>
 
-  <p>
-    <a href="/.auth/login/aad">Sign in with Polestar account</a> |
-    <a href="/.auth/logout">Sign out</a>
-  </p>
+  <main class="page">
+    <section class="intro card">
+      <h1>Polestar Document Drafter</h1>
+      <p>
+        This tool helps you generate first-draft documents using Polestar’s internal AI orchestration.
+        Choose a document type, describe what you need, and the system will prepare a draft based on
+        the information you provide and data available in our internal systems.
+      </p>
+      <p class="intro-steps">
+        <strong>How to use:</strong>
+        <span>1. Select a document type.</span>
+        <span>2. Fill in the key details (client, sector, brief, style).</span>
+        <span>3. Click <em>Generate draft</em> to send the request.</span>
+        <span>4. Review and edit the draft before sharing with clients.</span>
+      </p>
+      <p class="intro-note">
+        Drafts are for internal use only and must always be reviewed by a Polestar team member
+        before being shared externally.
+      </p>
+    </section>
 
-  <p id="user-info"></p>
+    <section class="layout">
+      <!-- LEFT: INPUT FORM -->
+      <section class="card form-card">
+        <h2>Document request</h2>
+
+        <form id="draft-form">
+          <!-- Document type -->
+          <div class="field-group">
+            <label for="docType">Document type</label>
+            <select id="docType" name="docType" required>
+              <option value="">Select a document type…</option>
+              <option value="IM">Information Memorandum (IM)</option>
+              <option value="SectorValuation">Sector valuation</option>
+              <option value="" disabled>──────────</option>
+              <option value="NDA" disabled>NDA (in build)</option>
+              <option value="Teaser" disabled>Teaser (in build)</option>
+              <option value="Blog" disabled>Blog (in build)</option>
+              <option value="Deck" disabled>Deck (in build)</option>
+            </select>
+            <p class="field-hint">
+              Only enabled document types are currently available. Additional templates will be enabled as Logic Apps are completed.
+            </p>
+          </div>
+
+          <!-- Client / deal details -->
+          <div class="field-row">
+            <div class="field-group">
+              <label for="clientName">Client / project name</label>
+              <input
+                type="text"
+                id="clientName"
+                name="clientName"
+                placeholder="e.g. Raedas"
+                autocomplete="off"
+              />
+            </div>
+            <div class="field-group">
+              <label for="formId">Form / deal ID (optional)</label>
+              <input
+                type="text"
+                id="formId"
+                name="formId"
+                placeholder="e.g. 12345"
+                autocomplete="off"
+              />
+            </div>
+          </div>
+
+          <!-- Sector & document focus -->
+          <div class="field-row">
+            <div class="field-group">
+              <label for="sector">Sector</label>
+              <input
+                type="text"
+                id="sector"
+                name="sector"
+                placeholder="e.g. Software, Media & Technology"
+                autocomplete="off"
+              />
+              <p class="field-hint">
+                Used especially for sector valuations and IMs.
+              </p>
+            </div>
+
+            <div class="field-group">
+              <label for="sectionOrFocus">Section / focus</label>
+              <input
+                type="text"
+                id="sectionOrFocus"
+                name="sectionOrFocus"
+                placeholder="e.g. Executive summary, Financials, Market overview"
+                autocomplete="off"
+              />
+              <p class="field-hint">
+                For IMs, specify which section(s) you want drafted. For other docs, describe the main focus.
+              </p>
+            </div>
+          </div>
+
+          <!-- Task description -->
+          <div class="field-group">
+            <label for="taskDescription">What do you need drafted?</label>
+            <textarea
+              id="taskDescription"
+              name="taskDescription"
+              rows="4"
+              placeholder="Describe the purpose, required angle, and anything important the draft must cover."
+              required
+            ></textarea>
+          </div>
+
+          <!-- Style guidance -->
+          <div class="field-group">
+            <label for="styleQuery">Style guidance (optional)</label>
+            <textarea
+              id="styleQuery"
+              name="styleQuery"
+              rows="3"
+              placeholder="e.g. Concise, board-ready; emphasise growth story and international footprint; avoid technical jargon."
+            ></textarea>
+            <p class="field-hint">
+              This helps the model match Polestar’s tone and the expected audience for the document.
+            </p>
+          </div>
+
+          <!-- Additional notes -->
+          <div class="field-group">
+            <label for="extraContext">Additional context (optional)</label>
+            <textarea
+              id="extraContext"
+              name="extraContext"
+              rows="3"
+              placeholder="Any key facts, caveats, or internal notes that should inform the draft."
+            ></textarea>
+          </div>
+
+          <!-- Future: file upload placeholder -->
+          <div class="field-group field-group-inline">
+            <div>
+              <label>Source files (coming soon)</label>
+              <p class="field-hint">
+                In a future version you’ll be able to attach financial packs, sector data, and other source documents.
+              </p>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="form-actions">
+            <button type="submit" id="submitBtn">Generate draft</button>
+            <span id="form-status" class="form-status" aria-live="polite"></span>
+          </div>
+        </form>
+      </section>
+
+      <!-- RIGHT: STATUS / RESULT -->
+      <section class="card result-card">
+        <h2>Draft status & output</h2>
+
+        <div class="status-block">
+          <h3>Status</h3>
+          <p id="statusText">
+            Ready to send your first request. Complete the form on the left and click
+            <strong>Generate draft</strong>.
+          </p>
+        </div>
+
+        <div class="status-block">
+          <h3>Current request (preview)</h3>
+          <pre id="requestPreview" class="preview-box">
+No request yet. Your request payload will appear here before we send it to the backend.
+          </pre>
+        </div>
+
+        <div class="status-block">
+          <h3>Draft output</h3>
+          <div id="draftOutput" class="draft-output">
+            Once connected to the Logic Apps backend, your generated draft will appear here for quick review
+            before it’s stored or distributed.
+          </div>
+        </div>
+
+        <div class="status-block info-block">
+          <h3>Important</h3>
+          <ul>
+            <li>Drafts may include sensitive client and Polestar information.</li>
+            <li>Only share outputs with approved recipients after review.</li>
+            <li>Use this as a starting point, not a finished product.</li>
+          </ul>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>© Polestar CF LLP</span>
+    <a href="https://polestarcf.com/" target="_blank" rel="noreferrer" class="link-muted">
+      polestarcf.com
+    </a>
+  </footer>
 
   <script src="app.js"></script>
 </body>
