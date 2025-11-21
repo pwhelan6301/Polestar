@@ -59,13 +59,11 @@ async function callBackend(payload) {
 // --- Section options per document type ---
 const SECTION_OPTIONS = {
   IM: [
-    '1.1 OVERVIEW',
-    '1.2 MARKET',
-    '1.5 PEOPLE',
-    '1.6 MANAGEMENT AND SYSTEMS',
-    '1.7 CLIENT',
-    '1.8 FINANCIAL',
-    '1.9 REASON FOR TRANSACTION'
+    'Executive Summary',
+    'Financials',
+    'Market',
+    'Background & History',
+    'Clients'
   ],
   SectorValuation: [
     'Overview',
@@ -131,21 +129,33 @@ function initForm() {
       return;
     }
 
-    const formIdRaw = form.formId.value;
-    const formIdParsed = formIdRaw && !Number.isNaN(Number(formIdRaw))
-      ? Number(formIdRaw)
-      : null;
+    const formIdRaw = form.formId.value.trim();
+    const clientName = form.clientName.value.trim();
+    const sectionOrFocus = form.sectionOrFocus.value.trim();
+    const taskDescription = form.taskDescription.value.trim();
+    const styleQuery = form.styleQuery.value.trim();
+    const extraContext = form.extraContext.value.trim();
+
+    const queryParts = [
+      taskDescription && `Task: ${taskDescription}`,
+      clientName && `Client / project: ${clientName}`,
+      formIdRaw && `Form / deal ID: ${formIdRaw}`,
+      styleQuery && `Style guidance: ${styleQuery}`,
+      extraContext && `Additional context: ${extraContext}`
+    ].filter(Boolean);
+
+    const query = queryParts.join('\n') || taskDescription || '';
 
     const payload = {
       doc_type: docType,
-      form_id: formIdParsed,
-      client_name: form.clientName.value || null,
-      sector: form.sector.value || null,
-      im_section: form.sectionOrFocus.value || null,
-      task_description: form.taskDescription.value || null,
-      style_query: form.styleQuery.value || null,
-      query: form.extraContext.value || ''
+      query,
+      operationID: (crypto.randomUUID && crypto.randomUUID()) || `op-${Date.now()}`,
+      im_section: docType === 'IM' ? (sectionOrFocus || '') : undefined
     };
+
+    if (form.sector.value) {
+      payload.sector = form.sector.value;
+    }
 
     if (previewEl) {
       previewEl.textContent = JSON.stringify(payload, null, 2);
