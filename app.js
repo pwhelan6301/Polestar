@@ -150,10 +150,25 @@ function initForm() {
     const payload = {
       doc_type: docType,
       query,
-      operationID: (crypto.randomUUID && crypto.randomUUID()) || `op-${Date.now()}`
+            operationID: (crypto.randomUUID && crypto.randomUUID()) || `op-${Date.now()}`,
+      templateID: docType
     };
 
-        if (form.sector.value) {
+    if (formIdRaw) {
+      const parsedFormId = Number(formIdRaw);
+      if (!Number.isInteger(parsedFormId)) {
+        statusEl.textContent = 'Form ID must be a whole number.';
+        statusEl.style.color = 'var(--danger)';
+        return;
+      }
+      payload.form_id = parsedFormId;
+    }
+
+    if (docType === 'IM' && sectionOrFocus) {
+      payload.im_section = sectionOrFocus;
+    }
+
+    if (form.sector.value) {
       payload.sector = form.sector.value;
     }
 
