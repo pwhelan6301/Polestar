@@ -129,6 +129,21 @@ function initForm() {
       return;
     }
 
+        const operationId = form.operationId.value.trim();
+    const templateIdRaw = form.templateId.value.trim();
+
+    if (!operationId) {
+      statusEl.textContent = 'Please add a document title.';
+      statusEl.style.color = 'var(--danger)';
+      return;
+    }
+
+    if (!templateIdRaw) {
+      statusEl.textContent = 'Please enter a template ID from the SharePoint list.';
+      statusEl.style.color = 'var(--danger)';
+      return;
+    }
+
     const formIdRaw = form.formId.value.trim();
     const clientName = form.clientName.value.trim();
     const sectionOrFocus = form.sectionOrFocus.value.trim();
@@ -150,9 +165,16 @@ function initForm() {
     const payload = {
       doc_type: docType,
       query,
-            operationID: (crypto.randomUUID && crypto.randomUUID()) || `op-${Date.now()}`,
-      templateID: docType
+         operationID: operationId
     };
+
+        const parsedTemplateId = Number(templateIdRaw);
+    if (!Number.isInteger(parsedTemplateId)) {
+      statusEl.textContent = 'Template ID must be a whole number.';
+      statusEl.style.color = 'var(--danger)';
+      return;
+    }
+    payload.templateID = parsedTemplateId;
 
     if (formIdRaw) {
       const parsedFormId = Number(formIdRaw);
