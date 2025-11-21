@@ -67,6 +67,35 @@
             </p>
           </div>
 
+            <!-- Document meta -->
+          <div class="field-row">
+            <div class="field-group">
+              <label for="operationId">Document title</label>
+              <input
+                type="text"
+                id="operationId"
+                name="operationId"
+                placeholder="e.g. Project Atlas IM"
+                autocomplete="off"
+                required
+              />
+            </div>
+            <div class="field-group">
+              <label for="templateId">TemplateID (please see sharepoint list)</label>
+              <input
+                type="text"
+                id="templateId"
+                name="templateId"
+                placeholder="e.g. 123"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                autocomplete="off"
+                required
+              />
+              <p class="field-hint">Template ID must be a whole number.</p>
+            </div>
+          </div>
+
           <!-- Client / deal details -->
           <div class="field-row">
             <div class="field-group">
