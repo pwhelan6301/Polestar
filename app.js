@@ -59,13 +59,11 @@ async function callBackend(payload) {
 // --- Section options per document type ---
 const SECTION_OPTIONS = {
   IM: [
-    '1.1 OVERVIEW',
-    '1.2 MARKET',
-    '1.5 PEOPLE',
-    '1.6 MANAGEMENT AND SYSTEMS',
-    '1.7 CLIENT',
-    '1.8 FINANCIAL',
-    '1.9 REASON FOR TRANSACTION'
+    'Executive Summary',
+    'Financials',
+    'Market',
+    'Background & History',
+    'Clients'
   ],
   SectorValuation: [
     'Overview',
