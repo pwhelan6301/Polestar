@@ -97,6 +97,32 @@ function populateSectionOptions(docType, selectEl) {
   selectEl.disabled = options.length === 0;
 }
 
+function renderJsonOutput(outputEl, jsonString) {
+  try {
+    const data = JSON.parse(jsonString);
+    const { operationId, status, "Find file here": sharepointLink } = data;
+
+    let html = '';
+    if (operationId) {
+      html += `<p><strong>Operation ID:</strong> ${operationId}</p>`;
+    }
+    if (status) {
+      html += `<p><strong>Status:</strong> ${status}</p>`;
+    }
+    if (sharepointLink) {
+      html += `<p><strong>SharePoint Link:</strong> <a href="${sharepointLink}" target="_blank" rel="noopener noreferrer">Open document</a></p>`;
+    }
+
+    if (html) {
+      outputEl.innerHTML = html;
+    } else {
+      outputEl.textContent = jsonString;
+    }
+  } catch (error) {
+    outputEl.textContent = jsonString;
+  }
+}
+
 // --- Form handling ---
 function initForm() {
   const form = document.getElementById('draft-form');
@@ -237,7 +263,7 @@ function initForm() {
       }
 
       if (outputEl) {
-        outputEl.textContent = displayText;
+        renderJsonOutput(outputEl, displayText);
       }
 
       if (statusText) {
