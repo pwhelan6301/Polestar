@@ -1,17 +1,19 @@
 // Mock data for initial display
-const mockSections = [
+let mockSections = [
   'Background & History',
   'Market'
 ];
 
-const mockParagraphs = [
+let mockParagraphs = [
   {
+    id: 1,
     section: 'Background & History',
     header: 'OVERVIEW',
     task: 'Describe how the client\'s business has evolved over time...', // Corrected: escaped apostrophe
     style: 'overview of a company\'s evolution and current position' // Corrected: escaped apostrophe
   },
   {
+    id: 2,
     section: 'Background & History',
     header: 'TIMELINE',
     task: 'Set out a clear, chronological timeline of the client\'s development...', // Corrected: escaped apostrophe
@@ -31,11 +33,11 @@ const paragraphSectionSelect = document.getElementById('paragraph-section');
 function renderSections() {
   if (!sectionList) return;
   sectionList.innerHTML = '';
-  mockSections.forEach(section => {
+  mockSections.forEach((section, index) => {
     const li = document.createElement('li');
     li.innerHTML = `
       <span>${section}</span>
-      <button class="link-ghost">Delete</button>
+      <button class="link-ghost" data-index="${index}">Delete</button>
     `; // Corrected: escaped double quotes within template literal
     sectionList.appendChild(li);
   });
@@ -61,8 +63,8 @@ function renderParagraphs() {
         <small>Section: ${p.section}</small>
       </div>
       <div>
-        <button class="link-ghost">Edit</button>
-        <button class="link-ghost">Delete</button>
+        <button class="link-ghost" data-id="${p.id}" data-action="edit">Edit</button>
+        <button class="link-ghost" data-id="${p.id}" data-action="delete">Delete</button>
       </div>
     `; // Corrected: escaped double quotes within template literal
     paragraphList.appendChild(li);
@@ -87,6 +89,7 @@ if (addParagraphForm) {
   addParagraphForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const newParagraph = {
+      id: Date.now(),
       section: document.getElementById('paragraph-section').value,
       header: document.getElementById('paragraph-header').value,
       task: document.getElementById('paragraph-task').value,
@@ -96,6 +99,45 @@ if (addParagraphForm) {
       mockParagraphs.push(newParagraph);
       renderParagraphs();
       addParagraphForm.reset();
+    }
+  });
+}
+
+if (sectionList) {
+  sectionList.addEventListener('click', (e) => {
+    if (e.target.tagName === 'BUTTON') {
+      const index = e.target.dataset.index;
+      mockSections.splice(index, 1);
+      renderSections();
+      renderParagraphs();
+    }
+  });
+}
+
+if (paragraphList) {
+  paragraphList.addEventListener('click', (e) => {
+    if (e.target.tagName === 'BUTTON') {
+      const id = parseInt(e.target.dataset.id);
+      const action = e.target.dataset.action;
+
+      if (action === 'delete') {
+        mockParagraphs = mockParagraphs.filter(p => p.id !== id);
+        renderParagraphs();
+      }
+
+      if (action === 'edit') {
+        const p = mockParagraphs.find(p => p.id === id);
+        if (p) {
+          document.getElementById('paragraph-section').value = p.section;
+          document.getElementById('paragraph-header').value = p.header;
+          document.getElementById('paragraph-task').value = p.task;
+          document.getElementById('paragraph-style').value = p.style;
+
+          // For simplicity, we'll just remove the old one and add a new one on form submit
+          mockParagraphs = mockParagraphs.filter(p => p.id !== id);
+          renderParagraphs();
+        }
+      }
     }
   });
 }
