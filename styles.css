@@ -190,7 +190,8 @@ body {
 }
 
 .field-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
 }
 
@@ -276,6 +277,26 @@ button[type="submit"]:disabled {
   cursor: not-allowed;
 }
 
+button[type="submit"] .spinner {
+  display: none;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #ffffff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+button[type="submit"].loading .spinner {
+  display: inline-block;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .form-actions {
   display: flex;
   align-items: center;
@@ -337,6 +358,13 @@ a:hover {
   font-size: 1rem;
   margin: 0 0 0.4rem;
   font-weight: 600;
+}
+
+.status-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
 }
 
 .status-block p {

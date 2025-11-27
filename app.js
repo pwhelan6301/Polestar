@@ -199,6 +199,7 @@ function initForm() {
     }
 
     submitBtn.disabled = true;
+    submitBtn.classList.add('loading');
     statusEl.style.color = 'var(--text-soft)';
     statusEl.textContent = 'Sending request to Logic App…';
     if (statusText) {
@@ -256,6 +257,7 @@ function initForm() {
       }
     } finally {
       submitBtn.disabled = false;
+      submitBtn.classList.remove('loading');
     }
   });
 }
@@ -263,3 +265,21 @@ function initForm() {
 // --- Initialise on load ---
 fetchUser();
 initForm();
+
+// --- Copy to clipboard ---
+const copyBtn = document.getElementById('copyBtn');
+const draftOutput = document.getElementById('draftOutput');
+
+if (copyBtn && draftOutput) {
+  copyBtn.addEventListener('click', () => {
+    const textToCopy = draftOutput.textContent;
+    if (textToCopy) {
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy';
+        }, 2000);
+      });
+    }
+  });
+}

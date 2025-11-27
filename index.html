@@ -95,10 +95,6 @@
               />
               <p class="field-hint">Template ID must be a whole number.</p>
             </div>
-          </div>
-
-          <!-- Client / deal details -->
-          <div class="field-row">
             <div class="field-group">
               <label for="clientName">Client / project name</label>
               <input
@@ -120,6 +116,7 @@
               />
             </div>
           </div>
+
 
           <!-- Sector & document focus -->
           <div class="field-row">
@@ -200,7 +197,10 @@
 
           <!-- Actions -->
           <div class="form-actions">
-            <button type="submit" id="submitBtn">Generate draft</button>
+            <button type="submit" id="submitBtn">
+              <div class="spinner"></div>
+              Generate draft
+            </button>
             <span id="form-status" class="form-status" aria-live="polite"></span>
           </div>
         </form>
@@ -226,7 +226,10 @@ No request yet. Your request payload will appear here before we send it to the b
         </div>
 
         <div class="status-block">
-          <h3>Draft output</h3>
+          <div class="status-block-header">
+            <h3>Draft output</h3>
+            <button id="copyBtn" class="link-ghost">Copy</button>
+          </div>
           <div id="draftOutput" class="draft-output">
             Once connected to the Logic Apps backend, your generated draft will appear here for quick review
             before it’s stored or distributed.
