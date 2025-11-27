@@ -156,7 +156,6 @@ function initForm() {
     }
 
         const operationId = form.operationId.value.trim();
-    const templateIdRaw = form.templateId.value.trim();
 
     if (!operationId) {
       statusEl.textContent = 'Please add a document title.';
@@ -164,8 +163,34 @@ function initForm() {
       return;
     }
 
-    if (!templateIdRaw) {
-      statusEl.textContent = 'Please enter a template ID from the SharePoint list.';
+    // Determine templateID based on docType and sectionOrFocus
+    let templateID;
+    if (docType === 'IM') {
+      switch (sectionOrFocus) {
+        case 'Executive Summary':
+          templateID = 1;
+          break;
+        case 'Financials':
+          templateID = 3;
+          break;
+        case 'Market':
+          templateID = 4;
+          break;
+        case 'Background & History':
+          templateID = 5;
+          break;
+        case 'Clients':
+          templateID = 6;
+          break;
+        default:
+          statusEl.textContent = 'Please select a valid section for IM.';
+          statusEl.style.color = 'var(--danger)';
+          return;
+      }
+    } else if (docType === 'SectorValuation') {
+      templateID = 2; // Default for Sector Valuation
+    } else {
+      statusEl.textContent = 'Unsupported document type.';
       statusEl.style.color = 'var(--danger)';
       return;
     }
@@ -191,16 +216,9 @@ function initForm() {
     const payload = {
       doc_type: docType,
       query,
-         operationID: operationId
+      operationID: operationId,
+      templateID: templateID
     };
-
-        const parsedTemplateId = Number(templateIdRaw);
-    if (!Number.isInteger(parsedTemplateId)) {
-      statusEl.textContent = 'Template ID must be a whole number.';
-      statusEl.style.color = 'var(--danger)';
-      return;
-    }
-    payload.templateID = parsedTemplateId;
 
     if (formIdRaw) {
       const parsedFormId = Number(formIdRaw);
