@@ -97,27 +97,33 @@ function populateSectionOptions(docType, selectEl) {
   selectEl.disabled = options.length === 0;
 }
 
-function renderJsonOutput(outputEl, jsonString) {
+const keyToLabel = {
+  doc_type: 'Document Type',
+  query: 'Prompt',
+  operationID: 'Operation ID',
+  templateID: 'Template ID',
+  im_section: 'IM Section',
+  sector: 'Sector',
+  status: 'Status',
+  'Find file here': 'SharePoint Link',
+  operationId: 'Operation ID'
+};
+
+function renderJsonAsList(outputEl, jsonString) {
   try {
     const data = JSON.parse(jsonString);
-    const { operationId, status, "Find file here": sharepointLink } = data;
-
-    let html = '';
-    if (operationId) {
-      html += `<p><strong>Operation ID:</strong> ${operationId}</p>`;
+    let html = '<ul>';
+    for (const key in data) {
+      const label = keyToLabel[key] || key;
+      const value = data[key];
+      if (key === 'Find file here') {
+        html += `<li><strong>${label}:</strong> <a href="${value}" target="_blank" rel="noopener noreferrer">Open document</a></li>`;
+      } else {
+        html += `<li><strong>${label}:</strong> ${value}</li>`;
+      }
     }
-    if (status) {
-      html += `<p><strong>Status:</strong> ${status}</p>`;
-    }
-    if (sharepointLink) {
-      html += `<p><strong>SharePoint Link:</strong> <a href="${sharepointLink}" target="_blank" rel="noopener noreferrer">Open document</a></p>`;
-    }
-
-    if (html) {
-      outputEl.innerHTML = html;
-    } else {
-      outputEl.textContent = jsonString;
-    }
+    html += '</ul>';
+    outputEl.innerHTML = html;
   } catch (error) {
     outputEl.textContent = jsonString;
   }
@@ -155,7 +161,7 @@ function initForm() {
       return;
     }
 
-        const operationId = form.operationId.value.trim();
+    const operationId = form.operationId.value.trim();
 
     if (!operationId) {
       statusEl.textContent = 'Please add a document title.';
@@ -166,7 +172,7 @@ function initForm() {
     // Determine templateID based on docType and sectionOrFocus
     let templateID;
     if (docType === 'IM') {
-      switch (sectionOrFocus) {
+      switch (sectionSelect.value) {
         case 'Executive Summary':
           templateID = 1;
           break;
@@ -197,7 +203,7 @@ function initForm() {
 
     const formIdRaw = form.formId.value.trim();
     const clientName = form.clientName.value.trim();
-    const sectionOrFocus = form.sectionOrFocus.value.trim();
+    const sectionOrFocus = sectionSelect.value.trim();
     const taskDescription = form.taskDescription.value.trim();
     const styleQuery = form.styleQuery.value.trim();
     const extraContext = form.extraContext.value.trim();
@@ -220,26 +226,12 @@ function initForm() {
       templateID: templateID
     };
 
-    if (formIdRaw) {
-      const parsedFormId = Number(formIdRaw);
-      if (!Number.isInteger(parsedFormId)) {
-        statusEl.textContent = 'Form ID must be a whole number.';
-        statusEl.style.color = 'var(--danger)';
-        return;
-      }
-      payload.form_id = parsedFormId;
-    }
-
-    if (docType === 'IM' && sectionOrFocus) {
-      payload.im_section = sectionOrFocus;
-    }
-
     if (form.sector.value) {
       payload.sector = form.sector.value;
     }
 
     if (previewEl) {
-      previewEl.textContent = JSON.stringify(payload, null, 2);
+      renderJsonAsList(previewEl, JSON.stringify(payload, null, 2));
     }
 
     submitBtn.disabled = true;
@@ -281,7 +273,7 @@ function initForm() {
       }
 
       if (outputEl) {
-        renderJsonOutput(outputEl, displayText);
+        renderJsonAsList(outputEl, displayText);
       }
 
       if (statusText) {
@@ -305,7 +297,6 @@ function initForm() {
     }
   });
 }
-
 // --- Initialise on load ---
 fetchUser();
 initForm();
