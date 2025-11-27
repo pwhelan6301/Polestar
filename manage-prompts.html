@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Manage Prompts - Polestar Document Drafter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="top-bar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-text">
+        <span class="brand-title">Polestar</span>
+        <span class="brand-subtitle">Document Drafter</span>
+      </div>
+    </div>
+    <div class="user-area">
+      <a href="index.html" class="link-ghost">Back to Drafting</a>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="intro card">
+      <h1>Manage Prompts</h1>
+      <p>Add, edit, or delete the paragraph and section prompts used in the document drafting process.</p>
+    </section>
+
+    <section class="layout">
+      <!-- LEFT: MANAGE SECTIONS -->
+      <section class="card">
+        <h2>Manage Sections</h2>
+        <form id="add-section-form">
+          <div class="field-group">
+            <label for="new-section-name">Section Name</label>
+            <input type="text" id="new-section-name" placeholder="e.g., Background & History" required />
+          </div>
+          <div class="form-actions">
+            <button type="submit">Add Section</button>
+          </div>
+        </form>
+        <hr style="border-color: var(--border-subtle); margin: 1.5rem 0;" />
+        <h3>Existing Sections</h3>
+        <ul id="section-list" class="item-list">
+          <!-- Mock data -->
+          <li>
+            <span>Background & History</span>
+            <button class="link-ghost">Delete</button>
+          </li>
+          <li>
+            <span>Market</span>
+            <button class="link-ghost">Delete</button>
+          </li>
+        </ul>
+      </section>
+
+      <!-- RIGHT: MANAGE PARAGRAPHS -->
+      <section class="card">
+        <h2>Manage Paragraphs</h2>
+        <form id="add-paragraph-form">
+          <div class="field-group">
+            <label for="paragraph-section">Section</label>
+            <select id="paragraph-section" required>
+              <option value="">Select a section...</option>
+              <!-- Mock data -->
+              <option value="Background & History">Background & History</option>
+              <option value="Market">Market</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="paragraph-header">Paragraph Header</label>
+            <input type="text" id="paragraph-header" placeholder="e.g., OVERVIEW" required />
+          </div>
+          <div class="field-group">
+            <label for="paragraph-task">Task Description</label>
+            <textarea id="paragraph-task" rows="3" placeholder="Describe the purpose of the paragraph." required></textarea>
+          </div>
+          <div class="field-group">
+            <label for="paragraph-style">Style Query</label>
+            <input type="text" id="paragraph-style" placeholder="e.g., concise chronological company history" />
+          </div>
+          <div class="form-actions">
+            <button type="submit">Add Paragraph</button>
+          </div>
+        </form>
+        <hr style="border-color: var(--border-subtle); margin: 1.5rem 0;" />
+        <h3>Existing Paragraphs</h3>
+        <ul id="paragraph-list" class="item-list">
+          <!-- Mock data -->
+          <li>
+            <div>
+              <strong>OVERVIEW</strong>
+              <small>Section: Background & History</small>
+            </div>
+            <div>
+              <button class="link-ghost">Edit</button>
+              <button class="link-ghost">Delete</button>
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>TIMELINE</strong>
+              <small>Section: Background & History</small>
+            </div>
+            <div>
+              <button class="link-ghost">Edit</button>
+              <button class="link-ghost">Delete</button>
+            </div>
+          </li>
+        </ul>
+      </section>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>© Polestar CF LLP</span>
+    <a href="https://polestarcf.com/" target="_blank" rel="noreferrer" class="link-muted">
+      polestarcf.com
+    </a>
+  </footer>
+
+  <script src="manage-prompts.js"></script>
+</body>
+</html>
+<style>
+.item-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.item-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+</style>
