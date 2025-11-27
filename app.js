@@ -56,47 +56,6 @@ async function callBackend(payload) {
   };
 }
 
-// --- Section options per document type ---
-const SECTION_OPTIONS = {
-  IM: [
-    'Executive Summary',
-    'Financials',
-    'Market',
-    'Background & History',
-    'Clients'
-  ],
-  SectorValuation: [
-    'Overview',
-    'Market context',
-    'Trading comparables',
-    'Transaction comparables',
-    'Valuation summary',
-    'Key themes & risks'
-  ]
-  // NDA, Teaser, Blog, Deck will be added here later
-};
-
-function populateSectionOptions(docType, selectEl) {
-  if (!selectEl) return;
-
-  selectEl.innerHTML = '';
-
-  const placeholder = document.createElement('option');
-  placeholder.value = '';
-  placeholder.textContent = 'Select section / focus…';
-  selectEl.appendChild(placeholder);
-
-  const options = SECTION_OPTIONS[docType] || [];
-  options.forEach(label => {
-    const opt = document.createElement('option');
-    opt.value = label;
-    opt.textContent = label;
-    selectEl.appendChild(opt);
-  });
-
-  selectEl.disabled = options.length === 0;
-}
-
 const keyToLabel = {
   doc_type: 'Document Type',
   query: 'Prompt',
@@ -129,6 +88,38 @@ function renderJsonAsList(outputEl, jsonString) {
   }
 }
 
+// Mock data for sections and paragraphs (will be replaced by API calls)
+const MOCK_SECTIONS = [
+  { name: 'IM', templateMap: { 'Executive Summary': 1, 'Financials': 3, 'Market': 4, 'Background & History': 5, 'Clients': 6 } },
+  { name: 'SectorValuation', templateMap: { 'Overview': 2 } }
+];
+
+const MOCK_PARAGRAPHS = {
+  'Background & History': [
+    { section_header: 'OVERVIEW', task_description: 'Describe how the client\'s business has evolved over time...', style_query: 'overview of a company\'s evolution and current position' },
+    { section_header: 'TIMELINE', task_description: 'Set out a clear, chronological timeline of the client\'s development...', style_query: 'concise chronological company history and key milestones' },
+    { section_header: 'FUTURE GROWTH', task_description: 'Explain why the client is well positioned for future growth...', style_query: 'Polestar style, explaining how future growth is to be achieved' }
+  ],
+  'Executive Summary': [
+    { section_header: 'SECTION A', task_description: 'Section A description...', style_query: 'style A' },
+    { section_header: 'SECTION B', task_description: 'Section B description...', style_query: 'style B' }
+  ],
+  'Overview': [
+    { section_header: 'Overview Sub A', task_description: 'Overview Sub A description...', style_query: 'Overview A' },
+    { section_header: 'Overview Sub B', task_description: 'Overview Sub B description...', style_query: 'Overview B' }
+  ]
+};
+
+
+async function fetchSections() {
+  return new Promise(resolve => setTimeout(() => resolve(MOCK_SECTIONS), 100));
+}
+
+async function fetchParagraphsForSection(sectionName) {
+  return new Promise(resolve => setTimeout(() => resolve(MOCK_PARAGRAPHS[sectionName] || []), 100));
+}
+
+
 // --- Form handling ---
 function initForm() {
   const form = document.getElementById('draft-form');
@@ -137,24 +128,102 @@ function initForm() {
   const statusText = document.getElementById('statusText');
   const previewEl = document.getElementById('requestPreview');
   const outputEl = document.getElementById('draftOutput');
+  const sectionOrFocusDiv = document.getElementById('sectionOrFocus-div');
 
   if (!form) return;
 
   const docTypeSelect = form.docType;
   const sectionSelect = form.sectionOrFocus;
+  const paragraphSelectionDiv = document.createElement('div');
+  paragraphSelectionDiv.id = 'paragraph-selection-div';
+  paragraphSelectionDiv.className = 'field-group';
+  sectionSelect.parentNode.parentNode.insertBefore(paragraphSelectionDiv, sectionSelect.parentNode.nextSibling); // Insert after the section select field-group
 
-  // Update sections when document type changes
-  if (docTypeSelect && sectionSelect) {
-    docTypeSelect.addEventListener('change', () => {
-      populateSectionOptions(docTypeSelect.value, sectionSelect);
+
+  async function populateDocTypeOptions() {
+    const sections = await fetchSections();
+    docTypeSelect.innerHTML = '<option value="">Select a document type…</option>';
+    sections.forEach(sec => {
+      const option = document.createElement('option');
+      option.value = sec.name;
+      option.textContent = sec.name === 'IM' ? 'Information Memorandum (IM)' : sec.name;
+      docTypeSelect.appendChild(option);
     });
-    populateSectionOptions(docTypeSelect.value, sectionSelect);
   }
+
+
+  async function populateSectionOptions(selectedDocType) {
+    const sections = await fetchSections();
+    const currentSection = sections.find(s => s.name === selectedDocType);
+
+    sectionSelect.innerHTML = '<option value="">Select section / focus…</option>';
+    if (currentSection && currentSection.templateMap) {
+      Object.keys(currentSection.templateMap).forEach(sectionName => {
+        const option = document.createElement('option');
+        option.value = sectionName;
+        option.textContent = sectionName;
+        sectionSelect.appendChild(option);
+      });
+    }
+    sectionSelect.disabled = !currentSection;
+  }
+
+  async function renderParagraphCheckboxes(selectedSectionName) {
+    paragraphSelectionDiv.innerHTML = '';
+    if (!selectedSectionName) return;
+
+    const paragraphs = await fetchParagraphsForSection(selectedSectionName);
+    if (paragraphs.length === 0) return;
+
+    const label = document.createElement('label');
+    label.textContent = 'Select paragraphs:';
+    paragraphSelectionDiv.appendChild(label);
+
+    paragraphs.forEach((p, index) => {
+      const div = document.createElement('div');
+      div.className = 'checkbox-group';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.id = `paragraph-${index}`;
+      checkbox.value = p.section_header;
+      checkbox.checked = true; // Default to all selected
+      checkbox.dataset.task = p.task_description;
+      checkbox.dataset.style = p.style_query;
+      checkbox.dataset.imSection = p.im_section || selectedSectionName; // Assuming im_section might be needed for payload
+
+      const checkboxLabel = document.createElement('label');
+      checkboxLabel.htmlFor = `paragraph-${index}`;
+      checkboxLabel.textContent = p.section_header;
+
+      const description = document.createElement('p');
+      description.className = 'field-hint';
+      description.textContent = p.task_description;
+
+      div.appendChild(checkbox);
+      div.appendChild(checkboxLabel);
+      div.appendChild(description);
+      paragraphSelectionDiv.appendChild(div);
+    });
+  }
+
+
+  // Event listeners
+  docTypeSelect.addEventListener('change', async () => {
+    await populateSectionOptions(docTypeSelect.value);
+    await renderParagraphCheckboxes(sectionSelect.value);
+  });
+
+  sectionSelect.addEventListener('change', async () => {
+    await renderParagraphCheckboxes(sectionSelect.value);
+  });
+
+  // Initial population
+  populateDocTypeOptions();
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const docType = form.docType.value;
+    const docType = docTypeSelect.value;
     if (!docType) {
       statusEl.textContent = 'Please select a document type.';
       statusEl.style.color = 'var(--danger)';
@@ -171,53 +240,53 @@ function initForm() {
 
     // Determine templateID based on docType and sectionOrFocus
     let templateID;
-    if (docType === 'IM') {
-      switch (sectionSelect.value) {
-        case 'Executive Summary':
-          templateID = 1;
-          break;
-        case 'Financials':
-          templateID = 3;
-          break;
-        case 'Market':
-          templateID = 4;
-          break;
-        case 'Background & History':
-          templateID = 5;
-          break;
-        case 'Clients':
-          templateID = 6;
-          break;
-        default:
-          statusEl.textContent = 'Please select a valid section for IM.';
-          statusEl.style.color = 'var(--danger)';
-          return;
-      }
-    } else if (docType === 'SectorValuation') {
-      templateID = 2; // Default for Sector Valuation
-    } else {
-      statusEl.textContent = 'Unsupported document type.';
+    const selectedSectionName = sectionSelect.value;
+    const sections = await fetchSections();
+    const currentSection = sections.find(s => s.name === docType);
+
+    if (currentSection && currentSection.templateMap && selectedSectionName) {
+      templateID = currentSection.templateMap[selectedSectionName];
+    }
+
+    if (!templateID) {
+      statusEl.textContent = 'Please select a valid section/document type combination.';
       statusEl.style.color = 'var(--danger)';
       return;
     }
 
+
     const formIdRaw = form.formId.value.trim();
     const clientName = form.clientName.value.trim();
-    const sectionOrFocus = sectionSelect.value.trim();
+    // const sectionOrFocus = sectionSelect.value.trim(); // Now dynamic based on paragraphs
     const taskDescription = form.taskDescription.value.trim();
     const styleQuery = form.styleQuery.value.trim();
     const extraContext = form.extraContext.value.trim();
 
-    const queryParts = [
-      taskDescription && `Task: ${taskDescription}`,
-      clientName && `Client / project: ${clientName}`,
-      formIdRaw && `Form / deal ID: ${formIdRaw}`,
-      sectionOrFocus && `Section / focus: ${sectionOrFocus}`,
-      styleQuery && `Style guidance: ${styleQuery}`,
-      extraContext && `Additional context: ${extraContext}`
-    ].filter(Boolean);
+    const selectedParagraphs = Array.from(paragraphSelectionDiv.querySelectorAll('input[type="checkbox"]:checked')).map(checkbox => ({
+      section_header: checkbox.value,
+      task_description: checkbox.dataset.task,
+      style_query: checkbox.dataset.style,
+      im_section: checkbox.dataset.imSection || selectedSectionName, // Use selectedSectionName if im_section not explicitly set
+    }));
 
-    const query = queryParts.join('\n') || taskDescription || '';
+    // If no paragraphs selected, or if docType requires a query directly
+    let query = '';
+    if (selectedParagraphs.length > 0) {
+      query = selectedParagraphs.map(p => `Section: ${p.section_header}\nTask: ${p.task_description}\nStyle: ${p.style_query}`).join('\n\n');
+      if (taskDescription) query = `Overall Task: ${taskDescription}\n\n` + query; // Prepend overall task if present
+    } else {
+      // Fallback to original query construction if no paragraphs are selected
+      const queryParts = [
+        taskDescription && `Task: ${taskDescription}`,
+        clientName && `Client / project: ${clientName}`,
+        formIdRaw && `Form / deal ID: ${formIdRaw}`,
+        selectedSectionName && `Section / focus: ${selectedSectionName}`,
+        styleQuery && `Style guidance: ${styleQuery}`,
+        extraContext && `Additional context: ${extraContext}`
+      ].filter(Boolean);
+      query = queryParts.join('\n') || taskDescription || '';
+    }
+
 
     const payload = {
       doc_type: docType,
@@ -225,6 +294,20 @@ function initForm() {
       operationID: operationId,
       templateID: templateID
     };
+
+    if (formIdRaw) {
+      const parsedFormId = Number(formIdRaw);
+      if (!Number.isInteger(parsedFormId)) {
+        statusEl.textContent = 'Form ID must be a whole number.';
+        statusEl.style.color = 'var(--danger)';
+        return;
+      }
+      payload.form_id = parsedFormId;
+    }
+
+    if (selectedSectionName) { // Use selectedSectionName as im_section if needed
+      payload.im_section = selectedSectionName;
+    }
 
     if (form.sector.value) {
       payload.sector = form.sector.value;
