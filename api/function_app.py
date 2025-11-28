@@ -36,7 +36,7 @@ def manage_prompts(req: func.HttpRequest) -> func.HttpResponse:
     try:
         # Initialize Client
         client = CosmosClient(endpoint, key)
-        database = client.get_database_client("PromptLibrary")
+        database = client.get_database_client("Prompt")
         container = database.get_container_client("Templates")
 
         # --- GET: Fetch Prompts by Sector ---
