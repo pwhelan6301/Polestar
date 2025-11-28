@@ -68,6 +68,19 @@ const keyToLabel = {
   operationId: 'Operation ID'
 };
 
+const DOCUMENT_TYPES = [
+  { value: 'IM', label: 'Information Memorandum (IM)' },
+  { value: 'SectorValuation', label: 'Sector valuation' }
+];
+
+const SECTORS = [
+  { value: 'Business Services', label: 'Business Services' },
+  { value: 'Software, Media & Technology', label: 'Software, Media & Technology' },
+  { value: 'Sustainability', label: 'Sustainability' },
+  { value: 'Manufacturing & Industrial', label: 'Manufacturing & Industrial' },
+  { value: 'Health & Education', label: 'Health & Education' }
+];
+
 function renderJsonAsList(outputEl, jsonString) {
   try {
     const data = JSON.parse(jsonString);
@@ -88,35 +101,27 @@ function renderJsonAsList(outputEl, jsonString) {
   }
 }
 
-// Mock data for sections and paragraphs (will be replaced by API calls)
-const MOCK_SECTIONS = [
-  { name: 'IM', templateMap: { 'Executive Summary': 1, 'Financials': 3, 'Market': 4, 'Background & History': 5, 'Clients': 6 } },
-  { name: 'SectorValuation', templateMap: { 'Overview': 2 } }
-];
+const templateCache = new Map();
 
-const MOCK_PARAGRAPHS = {
-  'Background & History': [
-    { section_header: 'OVERVIEW', task_description: 'Describe how the client\'s business has evolved over time...', style_query: 'overview of a company\'s evolution and current position' },
-    { section_header: 'TIMELINE', task_description: 'Set out a clear, chronological timeline of the client\'s development...', style_query: 'concise chronological company history and key milestones' },
-    { section_header: 'FUTURE GROWTH', task_description: 'Explain why the client is well positioned for future growth...', style_query: 'Polestar style, explaining how future growth is to be achieved' }
-  ],
-  'Executive Summary': [
-    { section_header: 'SECTION A', task_description: 'Section A description...', style_query: 'style A' },
-    { section_header: 'SECTION B', task_description: 'Section B description...', style_query: 'style B' }
-  ],
-  'Overview': [
-    { section_header: 'Overview Sub A', task_description: 'Overview Sub A description...', style_query: 'Overview A' },
-    { section_header: 'Overview Sub B', task_description: 'Overview Sub B description...', style_query: 'Overview B' }
-  ]
-};
+async function fetchTemplates(docType, sector) {
+  if (!docType || !sector) {
+    return [];
+  }
 
+  const cacheKey = `${docType}::${sector}`;
+  if (templateCache.has(cacheKey)) {
+    return templateCache.get(cacheKey);
+  }
 
-async function fetchSections() {
-  return new Promise(resolve => setTimeout(() => resolve(MOCK_SECTIONS), 100));
-}
-
-async function fetchParagraphsForSection(sectionName) {
-  return new Promise(resolve => setTimeout(() => resolve(MOCK_PARAGRAPHS[sectionName] || []), 100));
+  const url = `/api/prompts?sector=${encodeURIComponent(sector)}&docType=${encodeURIComponent(docType)}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to load prompts: ${response.status} ${errorText}`);
+  }
+  const data = await response.json();
+  templateCache.set(cacheKey, data);
+  return data;
 }
 
 
@@ -134,98 +139,187 @@ function initForm() {
 
   const docTypeSelect = form.docType;
   const sectionSelect = form.sectionOrFocus;
+  const sectorSelect = form.sector;
   const paragraphSelectionDiv = document.createElement('div');
   paragraphSelectionDiv.id = 'paragraph-selection-div';
   paragraphSelectionDiv.className = 'field-group';
+
+  const subsectionDropdown = document.createElement('details');
+  subsectionDropdown.className = 'subsection-dropdown';
+  const subsectionSummary = document.createElement('summary');
+  subsectionSummary.textContent = 'Add subsections';
+  subsectionDropdown.appendChild(subsectionSummary);
+  const subsectionOptions = document.createElement('div');
+  subsectionOptions.className = 'subsection-options';
+  subsectionDropdown.appendChild(subsectionOptions);
+  const subsectionSelectionHint = document.createElement('p');
+  subsectionSelectionHint.className = 'field-hint';
+  subsectionSelectionHint.id = 'subsection-selection-hint';
+  subsectionSelectionHint.textContent = 'Select a document type and sector to load sections.';
+  paragraphSelectionDiv.appendChild(subsectionDropdown);
+  paragraphSelectionDiv.appendChild(subsectionSelectionHint);
+
   sectionSelect.parentNode.parentNode.insertBefore(paragraphSelectionDiv, sectionSelect.parentNode.nextSibling); // Insert after the section select field-group
 
+  let currentTemplates = [];
 
-  async function populateDocTypeOptions() {
-    const sections = await fetchSections();
+
+  function populateDocTypeOptions() {
     docTypeSelect.innerHTML = '<option value="">Select a document type…</option>';
-    sections.forEach(sec => {
+    DOCUMENT_TYPES.forEach((doc) => {
       const option = document.createElement('option');
-      option.value = sec.name;
-      option.textContent = sec.name === 'IM' ? 'Information Memorandum (IM)' : sec.name;
+      option.value = doc.value;
+      option.textContent = doc.label;
       docTypeSelect.appendChild(option);
     });
   }
 
-
-  async function populateSectionOptions(selectedDocType) {
-    const sections = await fetchSections();
-    const currentSection = sections.find(s => s.name === selectedDocType);
-
+  function populateSectionOptions() {
     sectionSelect.innerHTML = '<option value="">Select section / focus…</option>';
-    if (currentSection && currentSection.templateMap) {
-      Object.keys(currentSection.templateMap).forEach(sectionName => {
-        const option = document.createElement('option');
-        option.value = sectionName;
-        option.textContent = sectionName;
-        sectionSelect.appendChild(option);
-      });
-    }
-    sectionSelect.disabled = !currentSection;
+    currentTemplates.forEach(template => {
+      const option = document.createElement('option');
+      option.value = template.sectionTitle;
+      option.textContent = template.sectionTitle;
+      sectionSelect.appendChild(option);
+    });
+    sectionSelect.value = '';
+    sectionSelect.disabled = currentTemplates.length === 0;
   }
 
-  async function renderParagraphCheckboxes(selectedSectionName) {
-    paragraphSelectionDiv.innerHTML = '';
-    if (!selectedSectionName) return;
+  function updateSubsectionHint(message) {
+    if (subsectionSelectionHint) {
+      subsectionSelectionHint.textContent = message;
+    }
+  }
 
-    const paragraphs = await fetchParagraphsForSection(selectedSectionName);
-    if (paragraphs.length === 0) return;
+  function clearSubsectionOptions() {
+    subsectionOptions.innerHTML = '';
+    subsectionDropdown.open = false;
+    updateSubsectionHint('Select a document type and sector to load sections.');
+  }
 
-    const label = document.createElement('label');
-    label.textContent = 'Select paragraphs:';
-    paragraphSelectionDiv.appendChild(label);
+  function renderParagraphCheckboxes(selectedSectionName) {
+    subsectionOptions.innerHTML = '';
+    subsectionDropdown.open = false;
 
-    paragraphs.forEach((p, index) => {
-      const div = document.createElement('div');
-      div.className = 'checkbox-group';
+    if (!selectedSectionName) {
+      updateSubsectionHint('Choose a section to add available subsections.');
+      return;
+    }
+
+    const template = currentTemplates.find(t => t.sectionTitle === selectedSectionName);
+    if (!template) {
+      updateSubsectionHint('No template found for this section.');
+      return;
+    }
+
+    const subsections = Array.isArray(template.subsections) ? template.subsections : [];
+    if (subsections.length === 0) {
+      updateSubsectionHint('This section has no subsections configured yet.');
+      return;
+    }
+
+    subsections.forEach((sub, index) => {
+      const wrapper = document.createElement('label');
+      wrapper.className = 'checkbox-group';
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.id = `paragraph-${index}`;
-      checkbox.value = p.section_header;
-      checkbox.checked = true; // Default to all selected
-      checkbox.dataset.task = p.task_description;
-      checkbox.dataset.style = p.style_query;
-      checkbox.dataset.imSection = p.im_section || selectedSectionName; // Assuming im_section might be needed for payload
+      checkbox.checked = true;
+      checkbox.dataset.subsectionId = sub.id || `tmp-${index}`;
+      checkbox.dataset.title = sub.title || '';
+      checkbox.dataset.detail = sub.detailTaskDescription || sub.prompt || '';
+      checkbox.dataset.style = sub.styleQuery || '';
+      checkbox.dataset.prompt = sub.prompt || '';
+      checkbox.dataset.sectionTitle = template.sectionTitle;
+      checkbox.value = sub.title || '';
 
-      const checkboxLabel = document.createElement('label');
-      checkboxLabel.htmlFor = `paragraph-${index}`;
-      checkboxLabel.textContent = p.section_header;
+      const checkboxLabel = document.createElement('span');
+      checkboxLabel.textContent = sub.title || `Subsection ${index + 1}`;
 
-      const description = document.createElement('p');
+      const description = document.createElement('small');
       description.className = 'field-hint';
-      description.textContent = p.task_description;
+      description.textContent = sub.detailTaskDescription || sub.prompt || 'No description';
 
-      div.appendChild(checkbox);
-      div.appendChild(checkboxLabel);
-      div.appendChild(description);
-      paragraphSelectionDiv.appendChild(div);
+      wrapper.appendChild(checkbox);
+      wrapper.appendChild(checkboxLabel);
+      wrapper.appendChild(description);
+      subsectionOptions.appendChild(wrapper);
     });
+
+    updateSubsectionHint('Tick the subsections you want to include in this draft.');
+
+    subsectionOptions.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const count = subsectionOptions.querySelectorAll('input[type="checkbox"]:checked').length;
+        updateSubsectionHint(count > 0 ? `${count} subsections selected` : 'No subsections selected.');
+      });
+    });
+
+    const initialCount = subsectionOptions.querySelectorAll('input[type="checkbox"]:checked').length;
+    updateSubsectionHint(initialCount > 0 ? `${initialCount} subsections selected` : 'No subsections selected.');
+  }
+
+
+  async function refreshTemplates() {
+    const docType = docTypeSelect.value;
+    const sector = sectorSelect.value;
+
+    if (!docType || !sector) {
+      currentTemplates = [];
+      populateSectionOptions();
+      renderParagraphCheckboxes(null);
+      return;
+    }
+
+    try {
+      updateSubsectionHint('Loading subsections from Cosmos DB…');
+      const templates = await fetchTemplates(docType, sector);
+      currentTemplates = templates;
+      populateSectionOptions();
+      renderParagraphCheckboxes(sectionSelect.value);
+    } catch (error) {
+      console.error(error);
+      currentTemplates = [];
+      populateSectionOptions();
+      renderParagraphCheckboxes(null);
+      updateSubsectionHint('Failed to load subsections. Please try again.');
+      statusEl.textContent = 'Unable to load prompts for the selected document type/sector.';
+      statusEl.style.color = 'var(--danger)';
+    }
   }
 
 
   // Event listeners
-  docTypeSelect.addEventListener('change', async () => {
-    await populateSectionOptions(docTypeSelect.value);
-    await renderParagraphCheckboxes(sectionSelect.value);
-  });
+  docTypeSelect.addEventListener('change', refreshTemplates);
+  if (sectorSelect) {
+    sectorSelect.addEventListener('change', refreshTemplates);
+  }
 
-  sectionSelect.addEventListener('change', async () => {
-    await renderParagraphCheckboxes(sectionSelect.value);
+  sectionSelect.addEventListener('change', () => {
+    renderParagraphCheckboxes(sectionSelect.value);
   });
 
   // Initial population
   populateDocTypeOptions();
+  if (sectorSelect && !sectorSelect.value && SECTORS.length) {
+    sectorSelect.value = SECTORS[0].value;
+  }
+  refreshTemplates();
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const docType = docTypeSelect.value;
+    const sectorValue = sectorSelect ? sectorSelect.value : '';
     if (!docType) {
       statusEl.textContent = 'Please select a document type.';
+      statusEl.style.color = 'var(--danger)';
+      return;
+    }
+
+    if (!sectorValue) {
+      statusEl.textContent = 'Please select a sector.';
       statusEl.style.color = 'var(--danger)';
       return;
     }
@@ -238,44 +332,41 @@ function initForm() {
       return;
     }
 
-    // Determine templateID based on docType and sectionOrFocus
-    let templateID;
     const selectedSectionName = sectionSelect.value;
-    const sections = await fetchSections();
-    const currentSection = sections.find(s => s.name === docType);
-
-    if (currentSection && currentSection.templateMap && selectedSectionName) {
-      templateID = currentSection.templateMap[selectedSectionName];
-    }
-
-    if (!templateID) {
-      statusEl.textContent = 'Please select a valid section/document type combination.';
+    const selectedTemplate = currentTemplates.find(t => t.sectionTitle === selectedSectionName);
+    if (!selectedTemplate) {
+      statusEl.textContent = 'Please select a section after loading prompts.';
       statusEl.style.color = 'var(--danger)';
       return;
     }
 
+    const templateID = selectedTemplate.id;
+    if (!templateID) {
+      statusEl.textContent = 'This section is missing an ID. Please re-create it in Manage Prompts.';
+      statusEl.style.color = 'var(--danger)';
+      return;
+    }
 
     const formIdRaw = form.formId.value.trim();
     const clientName = form.clientName.value.trim();
-    // const sectionOrFocus = sectionSelect.value.trim(); // Now dynamic based on paragraphs
     const taskDescription = form.taskDescription.value.trim();
     const styleQuery = form.styleQuery.value.trim();
     const extraContext = form.extraContext.value.trim();
 
-    const selectedParagraphs = Array.from(paragraphSelectionDiv.querySelectorAll('input[type="checkbox"]:checked')).map(checkbox => ({
-      section_header: checkbox.value,
-      task_description: checkbox.dataset.task,
-      style_query: checkbox.dataset.style,
-      im_section: checkbox.dataset.imSection || selectedSectionName, // Use selectedSectionName if im_section not explicitly set
+    const selectedParagraphs = Array.from(subsectionOptions.querySelectorAll('input[type="checkbox"]:checked')).map((checkbox) => ({
+      id: checkbox.dataset.subsectionId,
+      title: checkbox.dataset.title,
+      detailTaskDescription: checkbox.dataset.detail,
+      styleQuery: checkbox.dataset.style,
+      prompt: checkbox.dataset.prompt,
+      sectionTitle: checkbox.dataset.sectionTitle
     }));
 
-    // If no paragraphs selected, or if docType requires a query directly
     let query = '';
     if (selectedParagraphs.length > 0) {
-      query = selectedParagraphs.map(p => `Section: ${p.section_header}\nTask: ${p.task_description}\nStyle: ${p.style_query}`).join('\n\n');
-      if (taskDescription) query = `Overall Task: ${taskDescription}\n\n` + query; // Prepend overall task if present
+      query = selectedParagraphs.map(p => `Section: ${p.title}\nTask: ${p.detailTaskDescription}\nStyle: ${p.styleQuery}`).join('\n\n');
+      if (taskDescription) query = `Overall Task: ${taskDescription}\n\n` + query;
     } else {
-      // Fallback to original query construction if no paragraphs are selected
       const queryParts = [
         taskDescription && `Task: ${taskDescription}`,
         clientName && `Client / project: ${clientName}`,
@@ -290,9 +381,26 @@ function initForm() {
 
     const payload = {
       doc_type: docType,
-      query,
       operationID: operationId,
-      templateID: templateID
+      templateID,
+      query,
+      sector: sectorValue,
+      clientName,
+      promptSet: {
+        section: {
+          id: selectedTemplate.id,
+          title: selectedTemplate.sectionTitle,
+          systemPrompt: selectedTemplate.systemPrompt,
+          userPrompt: selectedTemplate.userPrompt,
+          mainPrompt: selectedTemplate.mainPrompt || null
+        },
+        subsections: selectedParagraphs
+      },
+      manualInputs: {
+        taskDescription,
+        styleQuery,
+        extraContext
+      }
     };
 
     if (formIdRaw) {
@@ -305,16 +413,12 @@ function initForm() {
       payload.form_id = parsedFormId;
     }
 
-    if (selectedSectionName) { // Use selectedSectionName as im_section if needed
+    if (selectedSectionName) {
       payload.im_section = selectedSectionName;
     }
 
-    if (form.sector.value) {
-      payload.sector = form.sector.value;
-    }
-
     if (previewEl) {
-      renderJsonAsList(previewEl, JSON.stringify(payload, null, 2));
+      previewEl.textContent = JSON.stringify(payload, null, 2);
     }
 
     submitBtn.disabled = true;
