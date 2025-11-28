@@ -6,22 +6,39 @@ from azure.cosmos import CosmosClient
 
 app = func.FunctionApp()
 
-# Connection Details (Loaded from Environment Variables)
-ENDPOINT = os.environ["COSMOS_ENDPOINT"]
-KEY = os.environ["COSMOS_KEY"]
-DATABASE_NAME = "PromptLibrary"
-CONTAINER_NAME = "Templates"
+# --- NEW: Add a simple "hello" endpoint for diagnostics ---
+@app.route(route="hello", auth_level=func.AuthLevel.ANONYMOUS)
+def hello(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Python HTTP trigger function processed a request for /api/hello.')
+    return func.HttpResponse(
+        "Hello from the API! If you see this, the API is deployed and routing is working.",
+        status_code=200
+    )
 
-# Initialize Client
-client = CosmosClient(ENDPOINT, KEY)
-database = client.get_database_client(DATABASE_NAME)
-container = database.get_container_client(CONTAINER_NAME)
 
 @app.route(route="prompts", auth_level=func.AuthLevel.ANONYMOUS)
 def manage_prompts(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('Processing prompt request.')
+    logging.info('Processing prompt request for /api/prompts.')
+
+    # --- NEW: Gracefully check for environment variables ---
+    endpoint = os.getenv("COSMOS_ENDPOINT")
+    key = os.getenv("COSMOS_KEY")
+
+    if not all([endpoint, key]):
+        error_message = "Server configuration error: COSMOS_ENDPOINT or COSMOS_KEY environment variables are not set."
+        logging.error(error_message)
+        return func.HttpResponse(
+            json.dumps({"error": error_message}),
+            status_code=500,
+            mimetype="application/json"
+        )
 
     try:
+        # Initialize Client
+        client = CosmosClient(endpoint, key)
+        database = client.get_database_client("PromptLibrary")
+        container = database.get_container_client("Templates")
+
         # --- GET: Fetch Prompts by Sector ---
         if req.method == "GET":
             sector = req.params.get('sector')
