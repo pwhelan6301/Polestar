@@ -1,7 +1,9 @@
 // Global state to hold data from the backend
 let state = {
-  templates: [], // This will hold the full template objects from Cosmos DB
-  selectedSector: 'Technology' // Default sector for initial load
+  templates: [], // Full template objects from Cosmos DB
+  selectedSector: 'Technology', // Default sector for initial load
+  editingSectionId: null,
+  editingSubsection: null
 };
 
 // --- DOM Elements ---
@@ -11,6 +13,16 @@ const addSectionForm = document.getElementById('add-section-form');
 const addParagraphForm = document.getElementById('add-paragraph-form');
 const paragraphSectionSelect = document.getElementById('paragraph-section');
 const sectorSelector = document.createElement('div'); // A new element to select sector
+const sectionSystemInput = document.getElementById('section-system-prompt');
+const sectionUserInput = document.getElementById('section-user-prompt');
+const sectionSubmitButton = document.getElementById('section-submit-btn');
+const cancelSectionEditButton = document.getElementById('cancel-section-edit');
+const paragraphStyleInput = document.getElementById('paragraph-style');
+const paragraphSubmitButton = document.getElementById('paragraph-submit-btn');
+const cancelParagraphEditButton = document.getElementById('cancel-paragraph-edit');
+const sectionNameInput = document.getElementById('new-section-name');
+const paragraphHeaderInput = document.getElementById('paragraph-header');
+const paragraphTaskInput = document.getElementById('paragraph-task');
 
 // --- API Functions ---
 
@@ -18,11 +30,14 @@ async function fetchTemplates(sector) {
   try {
     const response = await fetch(`/api/prompts?sector=${sector}`);
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status} body: ${errorText}`);
     }
     const templates = await response.json();
     state.templates = templates;
     render();
+    resetSectionForm();
+    resetParagraphForm();
   } catch (error) {
     console.error("Error fetching templates:", error);
     alert('Failed to load templates. See console for details.');
@@ -37,15 +52,18 @@ async function saveTemplate(template) {
       body: JSON.stringify(template),
     });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status} body: ${errorText}`);
     }
     const result = await response.json();
     console.log('Save successful:', result);
     // Refresh data after saving
-    fetchTemplates(state.selectedSector);
+    await fetchTemplates(state.selectedSector);
+    return result;
   } catch (error) {
     console.error("Error saving template:", error);
     alert('Failed to save template. See console for details.');
+    throw error;
   }
 }
 
@@ -80,12 +98,17 @@ function renderSections() {
   const uniqueSections = getUniqueSections();
 
   uniqueSections.forEach(sectionTitle => {
+    const template = state.templates.find(t => t.sectionTitle === sectionTitle);
     const li = document.createElement('li');
-    // Note: Deleting a "section" from the UI would mean deleting all templates with that sectionTitle.
-    // This is a complex operation, so for now, the delete button is simplified.
     li.innerHTML = `
-      <span>${sectionTitle}</span>
-      <button class="link-ghost" data-section-title="${sectionTitle}">Delete</button>
+      <div>
+        <strong>${sectionTitle}</strong>
+        <small>System: ${template?.systemPrompt || 'Not set'}</small>
+        <small>User: ${template?.userPrompt || 'Not set'}</small>
+      </div>
+      <div>
+        <button class="link-ghost" data-action="edit-section" data-template-id="${template?.id ?? ''}">Edit</button>
+      </div>
     `;
     sectionList.appendChild(li);
   });
@@ -107,10 +130,14 @@ function renderParagraphs() {
     if (template.subsections && Array.isArray(template.subsections)) {
       template.subsections.forEach(sub => {
         const li = document.createElement('li');
+        const detail = sub.detailTaskDescription || sub.prompt || '';
+        const style = sub.styleQuery || '';
         li.innerHTML = `
           <div>
             <strong>${sub.title}</strong>
             <small>Section: ${template.sectionTitle}</small>
+            ${detail ? `<small>Task: ${detail}</small>` : ''}
+            ${style ? `<small>Style: ${style}</small>` : ''}
           </div>
           <div>
             <button class="link-ghost" data-template-id="${template.id}" data-subsection-id="${sub.id}" data-action="edit">Edit</button>
@@ -123,31 +150,113 @@ function renderParagraphs() {
   });
 }
 
+// --- Helpers ---
+
+function resetSectionForm() {
+  if (!addSectionForm) return;
+  addSectionForm.reset();
+  state.editingSectionId = null;
+  if (sectionSubmitButton) sectionSubmitButton.textContent = 'Add Section';
+  if (cancelSectionEditButton) cancelSectionEditButton.hidden = true;
+}
+
+function populateSectionForm(template) {
+  if (!addSectionForm || !template) return;
+  state.editingSectionId = template.id;
+  if (sectionNameInput) sectionNameInput.value = template.sectionTitle || '';
+  if (sectionSystemInput) sectionSystemInput.value = template.systemPrompt || '';
+  if (sectionUserInput) sectionUserInput.value = template.userPrompt || '';
+  if (sectionSubmitButton) sectionSubmitButton.textContent = 'Save Changes';
+  if (cancelSectionEditButton) cancelSectionEditButton.hidden = false;
+}
+
+function resetParagraphForm() {
+  if (!addParagraphForm) return;
+  addParagraphForm.reset();
+  state.editingSubsection = null;
+  if (paragraphSectionSelect) paragraphSectionSelect.disabled = false;
+  if (paragraphSubmitButton) paragraphSubmitButton.textContent = 'Add Paragraph';
+  if (cancelParagraphEditButton) cancelParagraphEditButton.hidden = true;
+}
+
+function populateParagraphForm(template, subsection) {
+  if (!addParagraphForm || !subsection) return;
+  state.editingSubsection = {
+    templateId: template.id,
+    subsectionId: subsection.id
+  };
+  if (paragraphSectionSelect) {
+    paragraphSectionSelect.value = template.sectionTitle;
+    paragraphSectionSelect.disabled = true;
+  }
+  if (paragraphHeaderInput) paragraphHeaderInput.value = subsection.title || '';
+  if (paragraphTaskInput) paragraphTaskInput.value = subsection.detailTaskDescription || subsection.prompt || '';
+  if (paragraphStyleInput) paragraphStyleInput.value = subsection.styleQuery || '';
+  if (paragraphSubmitButton) paragraphSubmitButton.textContent = 'Save Changes';
+  if (cancelParagraphEditButton) cancelParagraphEditButton.hidden = false;
+}
+
 // --- Event Listeners ---
 
 if (addSectionForm) {
-  addSectionForm.addEventListener('submit', (e) => {
+  addSectionForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const newSectionName = document.getElementById('new-section-name').value;
-    if (newSectionName) {
-      const newTemplate = {
-        // e.g., "tech-exec-summary-v1" - needs a robust way to be generated
-        id: `${state.selectedSector.toLowerCase()}-${newSectionName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`,
-        sector: state.selectedSector,
-        sectionTitle: newSectionName,
-        mainPrompt: { text: "Default main prompt...", tone: "Default" },
-        subsections: []
-      };
-      saveTemplate(newTemplate);
-      addSectionForm.reset();
+    const newSectionName = (sectionNameInput?.value || '').trim();
+    const systemPrompt = (sectionSystemInput?.value || '').trim();
+    const userPrompt = (sectionUserInput?.value || '').trim();
+
+    if (!newSectionName || !systemPrompt || !userPrompt) {
+      alert('Section name, system prompt, and user prompt are required.');
+      return;
+    }
+
+    try {
+      if (state.editingSectionId) {
+        const template = state.templates.find(t => t.id === state.editingSectionId);
+        if (!template) {
+          alert('Unable to find the section being edited.');
+          return;
+        }
+        template.sectionTitle = newSectionName;
+        template.systemPrompt = systemPrompt;
+        template.userPrompt = userPrompt;
+        await saveTemplate(template);
+      } else {
+        const newTemplate = {
+          id: `${state.selectedSector.toLowerCase()}-${newSectionName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`,
+          sector: state.selectedSector,
+          sectionTitle: newSectionName,
+          systemPrompt,
+          userPrompt,
+          mainPrompt: { text: "Default main prompt...", tone: "Default" },
+          subsections: []
+        };
+        await saveTemplate(newTemplate);
+      }
+      resetSectionForm();
+    } catch {
+      // errors handled in saveTemplate
     }
   });
 }
 
+if (cancelSectionEditButton) {
+  cancelSectionEditButton.addEventListener('click', resetSectionForm);
+}
+
 if (addParagraphForm) {
-  addParagraphForm.addEventListener('submit', (e) => {
+  addParagraphForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const sectionTitle = document.getElementById('paragraph-section').value;
+    const sectionTitle = paragraphSectionSelect ? paragraphSectionSelect.value : '';
+    const headerValue = (paragraphHeaderInput?.value || '').trim();
+    const descriptionValue = (paragraphTaskInput?.value || '').trim();
+    const styleValue = (paragraphStyleInput?.value || '').trim();
+
+    if (!headerValue || !descriptionValue) {
+      alert('Paragraph header and task description are required.');
+      return;
+    }
+
     const template = state.templates.find(t => t.sectionTitle === sectionTitle);
 
     if (!template) {
@@ -155,21 +264,45 @@ if (addParagraphForm) {
         return;
     }
 
-    const newSubsection = {
-      id: `sub-${Date.now()}`, // Simple unique ID for the subsection
-      title: document.getElementById('paragraph-header').value,
-      prompt: document.getElementById('paragraph-task').value,
-      type: 'text' // Or derive from a new form field
-    };
-
-    if (newSubsection.title && newSubsection.prompt) {
-      // Add the new subsection to the found template
-      template.subsections.push(newSubsection);
-      // Save the entire updated template
-      saveTemplate(template);
-      addParagraphForm.reset();
+    try {
+      if (state.editingSubsection) {
+        const subsectionIndex = template.subsections.findIndex(
+          sub => sub.id === state.editingSubsection.subsectionId
+        );
+        if (subsectionIndex === -1) {
+          alert('Unable to find the paragraph being edited.');
+          return;
+        }
+        template.subsections[subsectionIndex] = {
+          ...template.subsections[subsectionIndex],
+          title: headerValue,
+          detailTaskDescription: descriptionValue,
+          styleQuery: styleValue,
+          prompt: descriptionValue,
+          type: template.subsections[subsectionIndex].type || 'text'
+        };
+        await saveTemplate(template);
+      } else {
+        const newSubsection = {
+          id: `sub-${Date.now()}`, // Simple unique ID for the subsection
+          title: headerValue,
+          detailTaskDescription: descriptionValue,
+          styleQuery: styleValue,
+          prompt: descriptionValue,
+          type: 'text' // Or derive from a new form field
+        };
+        template.subsections.push(newSubsection);
+        await saveTemplate(template);
+      }
+      resetParagraphForm();
+    } catch {
+      // handled in saveTemplate
     }
   });
+}
+
+if (cancelParagraphEditButton) {
+  cancelParagraphEditButton.addEventListener('click', resetParagraphForm);
 }
 
 if (paragraphList) {
@@ -184,6 +317,9 @@ if (paragraphList) {
     if (!template) return;
 
     if (action === 'delete') {
+      if (state.editingSubsection && state.editingSubsection.subsectionId === subsectionId) {
+        resetParagraphForm();
+      }
       // Filter out the subsection to be deleted
       template.subsections = template.subsections.filter(sub => sub.id !== subsectionId);
       // Save the modified template
@@ -193,14 +329,21 @@ if (paragraphList) {
     if (action === 'edit') {
       const subsection = template.subsections.find(sub => sub.id === subsectionId);
       if (subsection) {
-        // Pre-fill the form
-        document.getElementById('paragraph-section').value = template.sectionTitle;
-        document.getElementById('paragraph-header').value = subsection.title;
-        document.getElementById('paragraph-task').value = subsection.prompt;
-        // For simplicity, we remove the old one. The user can then re-submit the form to add the "edited" one.
-        template.subsections = template.subsections.filter(sub => sub.id !== subsectionId);
-        saveTemplate(template);
+        populateParagraphForm(template, subsection);
       }
+    }
+  });
+}
+
+if (sectionList) {
+  sectionList.addEventListener('click', (e) => {
+    if (e.target.tagName !== 'BUTTON') return;
+    const action = e.target.dataset.action;
+    if (action !== 'edit-section') return;
+    const templateId = e.target.dataset.templateId;
+    const template = state.templates.find(t => t.id === templateId);
+    if (template) {
+      populateSectionForm(template);
     }
   });
 }

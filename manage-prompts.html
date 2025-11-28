@@ -35,8 +35,17 @@
             <label for="new-section-name">Section Name</label>
             <input type="text" id="new-section-name" placeholder="e.g., Background & History" required />
           </div>
+          <div class="field-group">
+            <label for="section-system-prompt">System Prompt</label>
+            <textarea id="section-system-prompt" rows="3" placeholder="Describe the overall instruction for this section." required></textarea>
+          </div>
+          <div class="field-group">
+            <label for="section-user-prompt">User Prompt</label>
+            <textarea id="section-user-prompt" rows="3" placeholder="Describe the user-facing instruction or context." required></textarea>
+          </div>
           <div class="form-actions">
-            <button type="submit">Add Section</button>
+            <button type="submit" id="section-submit-btn">Add Section</button>
+            <button type="button" id="cancel-section-edit" class="link-ghost" hidden>Cancel Edit</button>
           </div>
         </form>
         <hr style="border-color: var(--border-subtle); margin: 1.5rem 0;" />
@@ -80,7 +89,8 @@
             <input type="text" id="paragraph-style" placeholder="e.g., concise chronological company history" />
           </div>
           <div class="form-actions">
-            <button type="submit">Add Paragraph</button>
+            <button type="submit" id="paragraph-submit-btn">Add Paragraph</button>
+            <button type="button" id="cancel-paragraph-edit" class="link-ghost" hidden>Cancel Edit</button>
           </div>
         </form>
         <hr style="border-color: var(--border-subtle); margin: 1.5rem 0;" />
