@@ -10,10 +10,17 @@ app = func.FunctionApp()
 @app.route(route="hello", auth_level=func.AuthLevel.ANONYMOUS)
 def hello(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request for /api/hello.')
-    return func.HttpResponse(
-        "Hello from the API! If you see this, the API is deployed and routing is working.",
-        status_code=200
-    )
+    
+    # --- NEW: Diagnostic code to check environment variables ---
+    endpoint = os.getenv("COSMOS_ENDPOINT")
+    key = os.getenv("COSMOS_KEY")
+    
+    endpoint_status = f"COSMOS_ENDPOINT is set: {bool(endpoint)}. Value starts with: {str(endpoint)[:20]}..." if endpoint else "COSMOS_ENDPOINT is NOT SET."
+    key_status = f"COSMOS_KEY is set: {bool(key)}. Value is hidden." if key else "COSMOS_KEY is NOT SET."
+    
+    diagnostic_message = f"API Diagnostics:\n1. {endpoint_status}\n2. {key_status}"
+    
+    return func.HttpResponse(diagnostic_message, status_code=200, mimetype="text/plain")
 
 
 @app.route(route="prompts", auth_level=func.AuthLevel.ANONYMOUS)
