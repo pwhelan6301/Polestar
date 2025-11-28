@@ -30,7 +30,52 @@
       <!-- LEFT: MANAGE SECTIONS -->
       <section class="card">
         <h2>Manage Sections</h2>
+        <div class="field-row" style="margin-bottom: 1rem;">
+          <div class="field-group">
+            <label for="filter-doc-type">Document Type</label>
+            <select id="filter-doc-type">
+              <option value="">Select document type…</option>
+              <option value="IM">Information Memorandum (IM)</option>
+              <option value="SectorValuation">Sector valuation</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="filter-sector">Sector</label>
+            <select id="filter-sector">
+              <option value="">Select sector…</option>
+              <option value="Business Services">Business Services</option>
+              <option value="Software, Media & Technology">Software, Media & Technology</option>
+              <option value="Sustainability">Sustainability</option>
+              <option value="Manufacturing & Industrial">Manufacturing & Industrial</option>
+              <option value="Health & Education">Health & Education</option>
+            </select>
+          </div>
+        </div>
+        <p class="field-hint" style="margin-top: -0.5rem;">
+          Choose the document type and sector you want to manage, then edit or add section prompts below.
+        </p>
         <form id="add-section-form">
+          <div class="field-row">
+            <div class="field-group">
+              <label for="section-doc-type">Document Type</label>
+              <select id="section-doc-type" required>
+                <option value="">Select document type…</option>
+                <option value="IM">Information Memorandum (IM)</option>
+                <option value="SectorValuation">Sector valuation</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label for="section-sector">Sector</label>
+              <select id="section-sector" required>
+                <option value="">Select sector…</option>
+                <option value="Business Services">Business Services</option>
+                <option value="Software, Media & Technology">Software, Media & Technology</option>
+                <option value="Sustainability">Sustainability</option>
+                <option value="Manufacturing & Industrial">Manufacturing & Industrial</option>
+                <option value="Health & Education">Health & Education</option>
+              </select>
+            </div>
+          </div>
           <div class="field-group">
             <label for="new-section-name">Section Name</label>
             <input type="text" id="new-section-name" placeholder="e.g., Background & History" required />
@@ -50,17 +95,7 @@
         </form>
         <hr style="border-color: var(--border-subtle); margin: 1.5rem 0;" />
         <h3>Existing Sections</h3>
-        <ul id="section-list" class="item-list">
-          <!-- Mock data -->
-          <li>
-            <span>Background & History</span>
-            <button class="link-ghost">Delete</button>
-          </li>
-          <li>
-            <span>Market</span>
-            <button class="link-ghost">Delete</button>
-          </li>
-        </ul>
+        <ul id="section-list" class="item-list"></ul>
       </section>
 
       <!-- RIGHT: MANAGE PARAGRAPHS -->
@@ -71,9 +106,6 @@
             <label for="paragraph-section">Section</label>
             <select id="paragraph-section" required>
               <option value="">Select a section...</option>
-              <!-- Mock data -->
-              <option value="Background & History">Background & History</option>
-              <option value="Market">Market</option>
             </select>
           </div>
           <div class="field-group">
@@ -95,29 +127,7 @@
         </form>
         <hr style="border-color: var(--border-subtle); margin: 1.5rem 0;" />
         <h3>Existing Paragraphs</h3>
-        <ul id="paragraph-list" class="item-list">
-          <!-- Mock data -->
-          <li>
-            <div>
-              <strong>OVERVIEW</strong>
-              <small>Section: Background & History</small>
-            </div>
-            <div>
-              <button class="link-ghost">Edit</button>
-              <button class="link-ghost">Delete</button>
-            </div>
-          </li>
-          <li>
-            <div>
-              <strong>TIMELINE</strong>
-              <small>Section: Background & History</small>
-            </div>
-            <div>
-              <button class="link-ghost">Edit</button>
-              <button class="link-ghost">Delete</button>
-            </div>
-          </li>
-        </ul>
+        <ul id="paragraph-list" class="item-list"></ul>
       </section>
     </section>
   </main>

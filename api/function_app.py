@@ -39,20 +39,26 @@ def manage_prompts(req: func.HttpRequest) -> func.HttpResponse:
         database = client.get_database_client("Prompt")
         container = database.get_container_client("Templates")
 
-        # --- GET: Fetch Prompts by Sector ---
+        # --- GET: Fetch Prompts by Sector/Doc Type ---
         if req.method == "GET":
             sector = req.params.get('sector')
+            doc_type = req.params.get('docType')
             if not sector:
                 return func.HttpResponse(
                     json.dumps({"error": "Missing 'sector' query parameter"}), 
                     status_code=400, mimetype="application/json"
                 )
-            
-            # Query Cosmos DB
-            query = "SELECT * FROM c WHERE c.sector = @sector"
+            parameters = [{"name": "@sector", "value": sector}]
+
+            if doc_type:
+                parameters.append({"name": "@docType", "value": doc_type})
+                query = "SELECT * FROM c WHERE c.sector = @sector AND (NOT IS_DEFINED(c.docType) OR c.docType = @docType)"
+            else:
+                query = "SELECT * FROM c WHERE c.sector = @sector"
+
             items = list(container.query_items(
                 query=query,
-                parameters=[{"name": "@sector", "value": sector}],
+                parameters=parameters,
                 enable_cross_partition_query=True
             ))
             
@@ -63,9 +69,11 @@ def manage_prompts(req: func.HttpRequest) -> func.HttpResponse:
             req_body = req.get_json()
             
             # Validation: Ensure critical fields exist
-            if 'id' not in req_body or 'sector' not in req_body:
+            required_fields = ['id', 'sector', 'docType']
+            missing_fields = [field for field in required_fields if field not in req_body]
+            if missing_fields:
                 return func.HttpResponse(
-                    json.dumps({"error": "Payload must contain 'id' and 'sector'"}),
+                    json.dumps({"error": f"Payload missing required fields: {', '.join(missing_fields)}"}),
                     status_code=400, mimetype="application/json"
                 )
 
@@ -75,6 +83,25 @@ def manage_prompts(req: func.HttpRequest) -> func.HttpResponse:
             return func.HttpResponse(
                 json.dumps({"message": "Saved successfully", "id": req_body['id']}), 
                 status_code=200, mimetype="application/json"
+            )
+
+        # --- DELETE: Remove Prompt Section ---
+        elif req.method == "DELETE":
+            template_id = req.params.get('id')
+            sector = req.params.get('sector')
+
+            if not template_id or not sector:
+                return func.HttpResponse(
+                    json.dumps({"error": "Missing 'id' or 'sector' query parameter"}),
+                    status_code=400, mimetype="application/json"
+                )
+
+            container.delete_item(item=template_id, partition_key=sector)
+
+            return func.HttpResponse(
+                json.dumps({"message": "Deleted successfully", "id": template_id}),
+                status_code=200,
+                mimetype="application/json"
             )
 
     except Exception as e:

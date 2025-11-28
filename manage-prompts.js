@@ -1,7 +1,21 @@
+const DOCUMENT_TYPES = [
+  { value: 'IM', label: 'Information Memorandum (IM)' },
+  { value: 'SectorValuation', label: 'Sector valuation' }
+];
+
+const SECTORS = [
+  { value: 'Business Services', label: 'Business Services' },
+  { value: 'Software, Media & Technology', label: 'Software, Media & Technology' },
+  { value: 'Sustainability', label: 'Sustainability' },
+  { value: 'Manufacturing & Industrial', label: 'Manufacturing & Industrial' },
+  { value: 'Health & Education', label: 'Health & Education' }
+];
+
 // Global state to hold data from the backend
 let state = {
   templates: [], // Full template objects from Cosmos DB
-  selectedSector: 'Technology', // Default sector for initial load
+  selectedDocType: DOCUMENT_TYPES[0].value,
+  selectedSector: SECTORS[0].value,
   editingSectionId: null,
   editingSubsection: null
 };
@@ -13,6 +27,10 @@ const addSectionForm = document.getElementById('add-section-form');
 const addParagraphForm = document.getElementById('add-paragraph-form');
 const paragraphSectionSelect = document.getElementById('paragraph-section');
 const sectorSelector = document.createElement('div'); // A new element to select sector
+const filterDocTypeSelect = document.getElementById('filter-doc-type');
+const filterSectorSelect = document.getElementById('filter-sector');
+const sectionDocTypeSelect = document.getElementById('section-doc-type');
+const sectionSectorSelect = document.getElementById('section-sector');
 const sectionSystemInput = document.getElementById('section-system-prompt');
 const sectionUserInput = document.getElementById('section-user-prompt');
 const sectionSubmitButton = document.getElementById('section-submit-btn');
@@ -26,9 +44,15 @@ const paragraphTaskInput = document.getElementById('paragraph-task');
 
 // --- API Functions ---
 
-async function fetchTemplates(sector) {
+async function fetchTemplates() {
   try {
-    const response = await fetch(`/api/prompts?sector=${sector}`);
+    const { selectedSector, selectedDocType } = state;
+    if (!selectedSector || !selectedDocType) {
+      state.templates = [];
+      render();
+      return;
+    }
+    const response = await fetch(`/api/prompts?sector=${encodeURIComponent(selectedSector)}&docType=${encodeURIComponent(selectedDocType)}`);
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`HTTP error! status: ${response.status} body: ${errorText}`);
@@ -58,12 +82,29 @@ async function saveTemplate(template) {
     const result = await response.json();
     console.log('Save successful:', result);
     // Refresh data after saving
-    await fetchTemplates(state.selectedSector);
+    await fetchTemplates();
     return result;
   } catch (error) {
     console.error("Error saving template:", error);
     alert('Failed to save template. See console for details.');
     throw error;
+  }
+}
+
+async function deleteTemplate(template) {
+  if (!template) return;
+  try {
+    const response = await fetch(`/api/prompts?id=${encodeURIComponent(template.id)}&sector=${encodeURIComponent(template.sector)}`, {
+      method: 'DELETE'
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status} body: ${errorText}`);
+    }
+    await fetchTemplates();
+  } catch (error) {
+    console.error("Error deleting template:", error);
+    alert('Failed to delete section. See console for details.');
   }
 }
 
@@ -79,9 +120,10 @@ function renderSectorSelector() {
     // For now, let's just display the selected sector, not make it a dropdown.
     // This can be enhanced later.
     const introCard = document.querySelector('.intro.card');
-    if (introCard && !document.getElementById('sector-display')) {
-        sectorSelector.id = 'sector-display';
-        sectorSelector.innerHTML = `<p>Showing prompts for sector: <strong>${state.selectedSector}</strong></p>`;
+    if (!introCard) return;
+    sectorSelector.id = 'sector-display';
+    sectorSelector.innerHTML = `<p>Managing prompts for <strong>${state.selectedDocType}</strong> / <strong>${state.selectedSector}</strong></p>`;
+    if (!introCard.contains(sectorSelector)) {
         introCard.appendChild(sectorSelector);
     }
 }
@@ -103,11 +145,14 @@ function renderSections() {
     li.innerHTML = `
       <div>
         <strong>${sectionTitle}</strong>
+        <small>Doc type: ${template?.docType || 'Not set'}</small>
+        <small>Sector: ${template?.sector || 'Not set'}</small>
         <small>System: ${template?.systemPrompt || 'Not set'}</small>
         <small>User: ${template?.userPrompt || 'Not set'}</small>
       </div>
       <div>
         <button class="link-ghost" data-action="edit-section" data-template-id="${template?.id ?? ''}">Edit</button>
+        <button class="link-ghost" data-action="delete-section" data-template-id="${template?.id ?? ''}">Delete</button>
       </div>
     `;
     sectionList.appendChild(li);
@@ -156,6 +201,8 @@ function resetSectionForm() {
   if (!addSectionForm) return;
   addSectionForm.reset();
   state.editingSectionId = null;
+  if (sectionDocTypeSelect) sectionDocTypeSelect.value = state.selectedDocType || '';
+  if (sectionSectorSelect) sectionSectorSelect.value = state.selectedSector || '';
   if (sectionSubmitButton) sectionSubmitButton.textContent = 'Add Section';
   if (cancelSectionEditButton) cancelSectionEditButton.hidden = true;
 }
@@ -164,6 +211,8 @@ function populateSectionForm(template) {
   if (!addSectionForm || !template) return;
   state.editingSectionId = template.id;
   if (sectionNameInput) sectionNameInput.value = template.sectionTitle || '';
+  if (sectionDocTypeSelect) sectionDocTypeSelect.value = template.docType || '';
+  if (sectionSectorSelect) sectionSectorSelect.value = template.sector || '';
   if (sectionSystemInput) sectionSystemInput.value = template.systemPrompt || '';
   if (sectionUserInput) sectionUserInput.value = template.userPrompt || '';
   if (sectionSubmitButton) sectionSubmitButton.textContent = 'Save Changes';
@@ -174,7 +223,10 @@ function resetParagraphForm() {
   if (!addParagraphForm) return;
   addParagraphForm.reset();
   state.editingSubsection = null;
-  if (paragraphSectionSelect) paragraphSectionSelect.disabled = false;
+  if (paragraphSectionSelect) {
+    paragraphSectionSelect.disabled = false;
+    paragraphSectionSelect.value = '';
+  }
   if (paragraphSubmitButton) paragraphSubmitButton.textContent = 'Add Paragraph';
   if (cancelParagraphEditButton) cancelParagraphEditButton.hidden = true;
 }
@@ -204,11 +256,18 @@ if (addSectionForm) {
     const newSectionName = (sectionNameInput?.value || '').trim();
     const systemPrompt = (sectionSystemInput?.value || '').trim();
     const userPrompt = (sectionUserInput?.value || '').trim();
+    const docTypeValue = sectionDocTypeSelect?.value || '';
+    const sectorValue = sectionSectorSelect?.value || '';
 
-    if (!newSectionName || !systemPrompt || !userPrompt) {
-      alert('Section name, system prompt, and user prompt are required.');
+    if (!newSectionName || !systemPrompt || !userPrompt || !docTypeValue || !sectorValue) {
+      alert('Document type, sector, section name, system prompt, and user prompt are required.');
       return;
     }
+
+    state.selectedDocType = docTypeValue;
+    state.selectedSector = sectorValue;
+    if (filterDocTypeSelect) filterDocTypeSelect.value = docTypeValue;
+    if (filterSectorSelect) filterSectorSelect.value = sectorValue;
 
     try {
       if (state.editingSectionId) {
@@ -218,13 +277,16 @@ if (addSectionForm) {
           return;
         }
         template.sectionTitle = newSectionName;
+        template.docType = docTypeValue;
+        template.sector = sectorValue;
         template.systemPrompt = systemPrompt;
         template.userPrompt = userPrompt;
         await saveTemplate(template);
       } else {
         const newTemplate = {
-          id: `${state.selectedSector.toLowerCase()}-${newSectionName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`,
-          sector: state.selectedSector,
+          id: `${docTypeValue.toLowerCase()}-${sectorValue.replace(/\s+/g, '-').toLowerCase()}-${newSectionName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`,
+          sector: sectorValue,
+          docType: docTypeValue,
           sectionTitle: newSectionName,
           systemPrompt,
           userPrompt,
@@ -262,6 +324,10 @@ if (addParagraphForm) {
     if (!template) {
         alert('Please select a valid section.');
         return;
+    }
+
+    if (!Array.isArray(template.subsections)) {
+      template.subsections = [];
     }
 
     try {
@@ -306,7 +372,7 @@ if (cancelParagraphEditButton) {
 }
 
 if (paragraphList) {
-  paragraphList.addEventListener('click', (e) => {
+  paragraphList.addEventListener('click', async (e) => {
     if (e.target.tagName !== 'BUTTON') return;
 
     const action = e.target.dataset.action;
@@ -315,6 +381,9 @@ if (paragraphList) {
 
     const template = state.templates.find(t => t.id === templateId);
     if (!template) return;
+    if (!Array.isArray(template.subsections)) {
+      template.subsections = [];
+    }
 
     if (action === 'delete') {
       if (state.editingSubsection && state.editingSubsection.subsectionId === subsectionId) {
@@ -323,7 +392,11 @@ if (paragraphList) {
       // Filter out the subsection to be deleted
       template.subsections = template.subsections.filter(sub => sub.id !== subsectionId);
       // Save the modified template
-      saveTemplate(template);
+      try {
+        await saveTemplate(template);
+      } catch {
+        // errors handled in saveTemplate
+      }
     }
 
     if (action === 'edit') {
@@ -336,21 +409,55 @@ if (paragraphList) {
 }
 
 if (sectionList) {
-  sectionList.addEventListener('click', (e) => {
+  sectionList.addEventListener('click', async (e) => {
     if (e.target.tagName !== 'BUTTON') return;
     const action = e.target.dataset.action;
-    if (action !== 'edit-section') return;
     const templateId = e.target.dataset.templateId;
     const template = state.templates.find(t => t.id === templateId);
-    if (template) {
+    if (!template) return;
+
+    if (action === 'edit-section') {
       populateSectionForm(template);
     }
+
+    if (action === 'delete-section') {
+      const confirmDelete = window.confirm(`Delete the "${template.sectionTitle}" section? This removes all of its paragraphs.`);
+      if (confirmDelete) {
+        if (state.editingSectionId === template.id) {
+          resetSectionForm();
+          resetParagraphForm();
+        }
+        await deleteTemplate(template);
+      }
+    }
+  });
+}
+
+if (filterDocTypeSelect) {
+  filterDocTypeSelect.addEventListener('change', () => {
+    state.selectedDocType = filterDocTypeSelect.value;
+    resetSectionForm();
+    resetParagraphForm();
+    fetchTemplates();
+  });
+}
+
+if (filterSectorSelect) {
+  filterSectorSelect.addEventListener('change', () => {
+    state.selectedSector = filterSectorSelect.value;
+    resetSectionForm();
+    resetParagraphForm();
+    fetchTemplates();
   });
 }
 
 
 // --- Initial Load ---
 document.addEventListener('DOMContentLoaded', () => {
-  // Load templates for the default sector when the page loads
-  fetchTemplates(state.selectedSector);
+  if (filterDocTypeSelect) filterDocTypeSelect.value = state.selectedDocType;
+  if (filterSectorSelect) filterSectorSelect.value = state.selectedSector;
+  if (sectionDocTypeSelect) sectionDocTypeSelect.value = state.selectedDocType;
+  if (sectionSectorSelect) sectionSectorSelect.value = state.selectedSector;
+  // Load templates for the default selections when the page loads
+  fetchTemplates();
 });
