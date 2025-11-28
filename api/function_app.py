@@ -52,7 +52,7 @@ def manage_prompts(req: func.HttpRequest) -> func.HttpResponse:
             query = "SELECT * FROM c WHERE c.sector = @sector"
             items = list(container.query_items(
                 query=query,
-                parameters=[{"name": " @sector", "value": sector}],
+                parameters=[{"name": "@sector", "value": sector}],
                 enable_cross_partition_query=True
             ))
             
