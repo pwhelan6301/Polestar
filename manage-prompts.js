@@ -227,7 +227,7 @@ function resetParagraphForm() {
     paragraphSectionSelect.disabled = false;
     paragraphSectionSelect.value = '';
   }
-  if (paragraphSubmitButton) paragraphSubmitButton.textContent = 'Add Paragraph';
+  if (paragraphSubmitButton) paragraphSubmitButton.textContent = 'Add Subsection';
   if (cancelParagraphEditButton) cancelParagraphEditButton.hidden = true;
 }
 
@@ -315,7 +315,7 @@ if (addParagraphForm) {
     const styleValue = (paragraphStyleInput?.value || '').trim();
 
     if (!headerValue || !descriptionValue) {
-      alert('Paragraph header and task description are required.');
+      alert('Subsection header and task description are required.');
       return;
     }
 
@@ -336,7 +336,7 @@ if (addParagraphForm) {
           sub => sub.id === state.editingSubsection.subsectionId
         );
         if (subsectionIndex === -1) {
-          alert('Unable to find the paragraph being edited.');
+          alert('Unable to find the subsection being edited.');
           return;
         }
         template.subsections[subsectionIndex] = {
@@ -421,7 +421,7 @@ if (sectionList) {
     }
 
     if (action === 'delete-section') {
-      const confirmDelete = window.confirm(`Delete the "${template.sectionTitle}" section? This removes all of its paragraphs.`);
+      const confirmDelete = window.confirm(`Delete the "${template.sectionTitle}" section? This removes all of its subsections.`);
       if (confirmDelete) {
         if (state.editingSectionId === template.id) {
           resetSectionForm();

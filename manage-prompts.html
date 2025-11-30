@@ -23,7 +23,7 @@
   <main class="page">
     <section class="intro card">
       <h1>Manage Prompts</h1>
-      <p>Add, edit, or delete the paragraph and section prompts used in the document drafting process.</p>
+      <p>Add, edit, or delete the subsection and section prompts used in the document drafting process.</p>
     </section>
 
     <section class="layout">
@@ -98,9 +98,9 @@
         <ul id="section-list" class="item-list"></ul>
       </section>
 
-      <!-- RIGHT: MANAGE PARAGRAPHS -->
+      <!-- RIGHT: MANAGE SUBSECTIONS -->
       <section class="card">
-        <h2>Manage Paragraphs</h2>
+        <h2>Manage Subsections</h2>
         <form id="add-paragraph-form">
           <div class="field-group">
             <label for="paragraph-section">Section</label>
@@ -109,24 +109,24 @@
             </select>
           </div>
           <div class="field-group">
-            <label for="paragraph-header">Paragraph Header</label>
+            <label for="paragraph-header">Subsection Header</label>
             <input type="text" id="paragraph-header" placeholder="e.g., OVERVIEW" required />
           </div>
           <div class="field-group">
             <label for="paragraph-task">Task Description</label>
-            <textarea id="paragraph-task" rows="3" placeholder="Describe the purpose of the paragraph." required></textarea>
+            <textarea id="paragraph-task" rows="3" placeholder="Describe the purpose of the subsection." required></textarea>
           </div>
           <div class="field-group">
             <label for="paragraph-style">Style Query</label>
             <input type="text" id="paragraph-style" placeholder="e.g., concise chronological company history" />
           </div>
           <div class="form-actions">
-            <button type="submit" id="paragraph-submit-btn">Add Paragraph</button>
+            <button type="submit" id="paragraph-submit-btn">Add Subsection</button>
             <button type="button" id="cancel-paragraph-edit" class="link-ghost" hidden>Cancel Edit</button>
           </div>
         </form>
         <hr style="border-color: var(--border-subtle); margin: 1.5rem 0;" />
-        <h3>Existing Paragraphs</h3>
+        <h3>Existing Subsections</h3>
         <ul id="paragraph-list" class="item-list"></ul>
       </section>
     </section>
