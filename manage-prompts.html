@@ -30,7 +30,7 @@
       <!-- LEFT: MANAGE SECTIONS -->
       <section class="card">
         <h2>Manage Sections</h2>
-        <div class="field-row" style="margin-bottom: 1rem;">
+        <div class="field-row" style="margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
           <div class="field-group">
             <label for="filter-doc-type">Document Type</label>
             <select id="filter-doc-type">
@@ -49,6 +49,16 @@
               <option value="Manufacturing & Industrial">Manufacturing & Industrial</option>
               <option value="Health & Education">Health & Education</option>
             </select>
+          </div>
+          <div class="field-group">
+            <label for="filter-client">Client / use case</label>
+            <select id="filter-client">
+              <option value="all">All templates</option>
+              <option value="base">Sector default only</option>
+            </select>
+            <p class="field-hint">
+              Copy a sector template, then choose the client/use case here to edit that branch.
+            </p>
           </div>
         </div>
         <p class="field-hint" style="margin-top: -0.5rem;">
@@ -81,6 +91,13 @@
             <input type="text" id="new-section-name" placeholder="e.g., Background & History" required />
           </div>
           <div class="field-group">
+            <label for="section-client">Client / use case (optional)</label>
+            <input type="text" id="section-client" placeholder="Leave blank for the sector default" />
+            <p class="field-hint">
+              Give the template a name (e.g. client or scenario) when editing a branch of the sector default.
+            </p>
+          </div>
+          <div class="field-group">
             <label for="section-system-prompt">System Prompt</label>
             <textarea id="section-system-prompt" rows="3" placeholder="Describe the overall instruction for this section." required></textarea>
           </div>
@@ -94,13 +111,22 @@
           </div>
         </form>
         <hr style="border-color: var(--border-subtle); margin: 1.5rem 0;" />
-        <h3>Existing Sections</h3>
+        <h3>View / edit templates</h3>
+        <p class="field-hint">
+          Use <strong>View / Edit</strong> to change a template or <strong>Copy to new template</strong> to branch it for a client/use case.
+        </p>
         <ul id="section-list" class="item-list"></ul>
       </section>
 
       <!-- RIGHT: MANAGE SUBSECTIONS -->
       <section class="card">
         <h2>Manage Subsections</h2>
+        <div class="template-scope">
+          <strong id="template-scope-label">All templates (select a client to narrow down)</strong>
+          <p class="field-hint">
+            Subsections shown here are based on the template scope chosen on the left.
+          </p>
+        </div>
         <form id="add-paragraph-form">
           <div class="field-group">
             <label for="paragraph-section">Section</label>

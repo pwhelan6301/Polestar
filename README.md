@@ -18,6 +18,7 @@ Polestar Document Drafter is an Azure Static Web Apps project that lets teams as
 - **Status + output panel** – shows submission progress, the JSON payload we send to the Logic App, and the eventual response rendered as labelled fields. There is a built‑in “Copy” helper for quick sharing.
 - **Authentication helpers** – the shell surfaces the currently signed-in Static Web Apps user and provides sign-in/out links. The drafting page links straight to the prompt-management UI so editors can adjust prompts without redeploying.
 - **Prompt manager** – `/manage-prompts.html` lets authorised staff filter by doc type + sector, edit section metadata (system/user prompts), and CRUD subsections. Changes are persisted via the `/api/prompts` Azure Function into Cosmos DB, so the drafting form immediately reflects updates.
+- **Template branching** – prompt templates can now be filtered by doc type → sector → client/use case. Start from the sector default, then use “Copy to new template” to create a client-specific branch while keeping the base template untouched.
 
 ## Backend services
 
@@ -97,9 +98,9 @@ Polestar Document Drafter is an Azure Static Web Apps project that lets teams as
 ## Authoring prompts
 
 1. Navigate to **Manage Prompts** (link in the top bar).
-2. Choose the target document type + sector filter to load existing sections.
-3. Add or edit a section to set the system prompt, user prompt, and metadata. Saving creates/updates a Cosmos DB document.
-4. Add subsections (paragraphs) under a section, defining the title, task description, and style. These show up as selectable checkboxes in the drafting UI so requesters can include/exclude specific content.
+2. Choose the target document type + sector filter to load existing sections, then (optionally) pick a client/use case to focus on a branch of that template.
+3. Add or edit a section to set the system prompt, user prompt, and metadata. Use **Copy to new template** to duplicate the sector default for a specific client/use case – the new branch inherits all subsections and can be customised without touching the original.
+4. Add subsections under a section, defining the title, task description, and style. These show up as selectable checkboxes in the drafting UI so requesters can include/exclude specific content.
 5. Deleted sections immediately remove the associated subsections, and the drafting UI clears cached prompts.
 
 ## Deployment notes
