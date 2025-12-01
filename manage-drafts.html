@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Manage Drafts - Polestar Document Drafter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="top-bar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-text">
+        <span class="brand-title">Polestar</span>
+        <span class="brand-subtitle">Document Drafter</span>
+      </div>
+    </div>
+    <div class="user-area">
+      <a href="index.html" class="link-ghost">Back to drafting</a>
+      <a href="manage-prompts.html" class="link-ghost">Manage prompts</a>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="intro card">
+      <h1>View & manage drafts</h1>
+      <p>
+        Review AI-generated drafts, add contextual annotations, update status, and export the latest copy for sharing.
+        All feedback is stored so future iterations can build on it.
+      </p>
+    </section>
+
+    <section class="layout">
+      <!-- LEFT: DRAFT LIST -->
+      <section class="card">
+        <h2>Draft inbox</h2>
+        <div class="field-row" style="flex-wrap: wrap; gap: 1rem;">
+          <div class="field-group">
+            <label for="filter-draft-doc">Document type</label>
+            <select id="filter-draft-doc">
+              <option value="">All</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="filter-draft-sector">Sector</label>
+            <select id="filter-draft-sector">
+              <option value="">All</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="filter-draft-client">Client / use case</label>
+            <input id="filter-draft-client" type="text" placeholder="e.g. Project Atlas" />
+          </div>
+          <div class="field-group">
+            <label for="filter-draft-status">Status</label>
+            <select id="filter-draft-status">
+              <option value="">Any</option>
+              <option value="new">New</option>
+              <option value="in_review">In review</option>
+              <option value="needs_changes">Needs changes</option>
+              <option value="approved">Approved</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="filter-draft-search">Search requests</label>
+          <input id="filter-draft-search" type="search" placeholder="Search by operation ID, template, or keywords" />
+        </div>
+        <div id="draft-list" class="item-list"></div>
+      </section>
+
+      <!-- RIGHT: DRAFT DETAIL -->
+      <section class="card" id="draft-detail">
+        <h2>Draft detail</h2>
+        <div id="draft-meta" class="draft-meta">
+          <p>Select a draft from the left to see its content.</p>
+        </div>
+
+        <div class="draft-body">
+          <header class="draft-body__actions">
+            <div>
+              <label for="draft-status-select" class="field-label">Status</label>
+              <select id="draft-status-select">
+                <option value="">Not set</option>
+                <option value="new">New</option>
+                <option value="in_review">In review</option>
+                <option value="needs_changes">Needs changes</option>
+                <option value="approved">Approved</option>
+              </select>
+            </div>
+            <div class="draft-actions">
+              <button id="draft-export-btn" class="link-ghost">Export</button>
+              <button id="draft-copy-btn" class="link-ghost">Copy</button>
+            </div>
+          </header>
+
+          <article id="draft-content" class="draft-content">
+            <p class="field-hint">No draft selected.</p>
+          </article>
+        </div>
+
+        <div class="field-group">
+          <label for="draft-annotations">Reviewer notes / annotations</label>
+          <textarea id="draft-annotations" rows="4" placeholder="Capture contextual feedback, revisions, and guidance for the next iteration." disabled></textarea>
+        </div>
+        <div class="form-actions">
+          <button id="draft-save-btn" disabled>Save annotations</button>
+          <span id="draft-status-message" class="form-status" aria-live="polite"></span>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>© Polestar CF LLP</span>
+    <a href="https://polestarcf.com/" target="_blank" rel="noreferrer" class="link-muted">
+      polestarcf.com
+    </a>
+  </footer>
+
+  <script src="manage-drafts.js"></script>
+</body>
+</html>

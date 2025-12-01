@@ -404,6 +404,118 @@ a:hover {
   color: var(--text-soft);
 }
 
+/* LISTS + DRAFT MANAGEMENT */
+.item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+
+.draft-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.draft-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.draft-card.active {
+  border-color: var(--accent-soft);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.draft-card__details {
+  flex: 1;
+}
+
+.draft-card__details h3 {
+  margin: 0 0 0.15rem;
+  font-size: 1rem;
+}
+
+.draft-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+.draft-card__status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.badge {
+  border-radius: 999px;
+  padding: 0.2rem 0.75rem;
+  border: 1px solid var(--border-subtle);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.draft-meta {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: var(--text-soft);
+}
+
+.draft-body {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  margin-bottom: 1.25rem;
+}
+
+.draft-body__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.draft-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.draft-content {
+  max-height: 45vh;
+  overflow: auto;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
+
+.draft-content h4 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1rem;
+  color: var(--text-main);
+}
+
+.draft-content p {
+  margin: 0 0 0.5rem;
+}
+
 /* FOOTER */
 .footer {
   padding: 1rem 2rem 1.25rem;

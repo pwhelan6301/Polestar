@@ -8,6 +8,7 @@ Polestar Document Drafter is an Azure Static Web Apps project that lets teams as
 | --- | --- |
 | `index.html`, `app.js`, `styles.css` | Document drafting UI served to end users. |
 | `manage-prompts.html`, `manage-prompts.js` | Admin UI for creating/updating sections and subsections stored in Cosmos DB. |
+| `manage-drafts.html`, `manage-drafts.js` | Draft review UI for filtering, annotating, and exporting generated drafts. |
 | `api/function_app.py` | Python Azure Function (`/api/prompts`, `/api/hello`) that mediates access to Cosmos DB. |
 | `IM_Generator.json` | Logic App definition that receives drafting payloads from the frontend. |
 | `staticwebapp.config.json` | Static Web Apps configuration (routes/auth). |
@@ -18,6 +19,7 @@ Polestar Document Drafter is an Azure Static Web Apps project that lets teams as
 - **Status + output panel** – shows submission progress, the JSON payload we send to the Logic App, and the eventual response rendered as labelled fields. There is a built‑in “Copy” helper for quick sharing.
 - **Authentication helpers** – the shell surfaces the currently signed-in Static Web Apps user and provides sign-in/out links. The drafting page links straight to the prompt-management UI so editors can adjust prompts without redeploying.
 - **Prompt manager** – `/manage-prompts.html` now walks editors through doc type → sector → template scope before exposing the relevant sections. Once a branch is selected they can edit section metadata (system/user prompts) and CRUD subsections, with every change flowing straight into Cosmos DB through `/api/prompts`.
+- **Draft manager** – `/manage-drafts.html` lists generated drafts (once the Logic App populates the `DocumentDrafts/Drafts` container), lets reviewers filter by doc type/sector/client/status, view the draft content, capture annotations, tweak status, and export/copy the latest version.
 - **Template branching** – prompt templates can now be filtered by doc type → sector → client/use case. Start from the guided “Sector template” view, then use “Copy to new template” to create a client-specific branch while keeping the base template untouched.
 
 ## Backend services
@@ -104,6 +106,15 @@ Polestar Document Drafter is an Azure Static Web Apps project that lets teams as
 5. Add or edit sections to tweak the system prompt, user prompt, and metadata for the currently selected branch. All saves go straight into Cosmos DB, so the drafting form immediately reflects the updates.
 6. Add subsections under a section, defining the title, task description, and style. These show up as selectable checkboxes in the drafting UI so requesters can include/exclude specific content.
 7. Deleted sections immediately remove the associated subsections, and the drafting UI clears cached prompts.
+
+## Reviewing drafts
+
+1. Ensure the Logic App writes generated outputs into the Cosmos DB database `DocumentDrafts`, container `Drafts` (partition key `/doctype`).
+2. Navigate to **View drafts** (`manage-drafts.html`) via the top navigation to open the reviewer workspace.
+3. Filter drafts by document type, sector, client/use case, status, or free-text search to locate the request you need to review.
+4. Select a draft to see metadata, the generated content (rendered section-by-section when `sections` data exists), and any existing annotations.
+5. Update the draft status, capture reviewer notes/annotations, and click **Save annotations** – the frontend calls `/api/drafts/:id` so Cosmos stores the feedback.
+6. Use **Copy** or **Export** to share the draft text externally. Future iterations can leverage the stored annotations to provide human-in-the-loop guidance to the backend agents.
 
 ## Deployment notes
 
