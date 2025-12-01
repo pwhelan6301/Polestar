@@ -14,9 +14,9 @@ const SECTORS = [
 // Global state to hold data from the backend
 let state = {
   templates: [], // Full template objects from Cosmos DB
-  selectedDocType: DOCUMENT_TYPES[0].value,
-  selectedSector: SECTORS[0].value,
-  selectedClient: 'all', // 'all', 'base', or specific clientTag
+  selectedDocType: '',
+  selectedSector: '',
+  selectedClient: null, // null until a branch is selected, 'base' for sector template, or clientTag
   editingSectionId: null,
   editingSubsection: null
 };
@@ -30,7 +30,6 @@ const paragraphSectionSelect = document.getElementById('paragraph-section');
 const sectorSelector = document.createElement('div'); // A new element to select sector
 const filterDocTypeSelect = document.getElementById('filter-doc-type');
 const filterSectorSelect = document.getElementById('filter-sector');
-const filterClientSelect = document.getElementById('filter-client');
 const sectionDocTypeSelect = document.getElementById('section-doc-type');
 const sectionSectorSelect = document.getElementById('section-sector');
 const sectionClientInput = document.getElementById('section-client');
@@ -45,6 +44,8 @@ const sectionNameInput = document.getElementById('new-section-name');
 const paragraphHeaderInput = document.getElementById('paragraph-header');
 const paragraphTaskInput = document.getElementById('paragraph-task');
 const templateScopeLabel = document.getElementById('template-scope-label');
+const branchButtonsContainer = document.getElementById('branch-buttons');
+const branchPickerHint = document.getElementById('branch-picker-hint');
 
 // --- API Functions ---
 
@@ -115,7 +116,7 @@ async function deleteTemplate(template) {
 // --- Render Functions ---
 
 function render() {
-  renderClientFilterOptions();
+  renderBranchPicker();
   renderSectorSelector();
   renderSections();
   renderParagraphs();
@@ -128,12 +129,19 @@ function renderSectorSelector() {
     const introCard = document.querySelector('.intro.card');
     if (!introCard) return;
     sectorSelector.id = 'sector-display';
-    const clientLabel = state.selectedClient === 'all'
-      ? 'All templates'
-      : state.selectedClient === 'base'
-        ? 'Sector default'
-        : state.selectedClient;
-    sectorSelector.innerHTML = `<p>Managing prompts for <strong>${state.selectedDocType}</strong> / <strong>${state.selectedSector}</strong> / <strong>${clientLabel}</strong></p>`;
+    const docLabel = state.selectedDocType || 'Select doc type';
+    const sectorLabel = state.selectedSector || 'Select sector';
+    let clientLabel = 'Choose template scope';
+    if (state.selectedDocType && state.selectedSector) {
+      if (state.selectedClient === 'base') {
+        clientLabel = 'Sector template';
+      } else if (state.selectedClient) {
+        clientLabel = state.selectedClient;
+      } else {
+        clientLabel = 'Pick a template branch';
+      }
+    }
+    sectorSelector.innerHTML = `<p>Managing prompts for <strong>${docLabel}</strong> / <strong>${sectorLabel}</strong> / <strong>${clientLabel}</strong></p>`;
     if (!introCard.contains(sectorSelector)) {
         introCard.appendChild(sectorSelector);
     }
@@ -143,16 +151,37 @@ function renderSectorSelector() {
 function renderSections() {
   if (!sectionList) return;
   sectionList.innerHTML = '';
+
+  if (!state.selectedDocType) {
+    sectionList.appendChild(createEmptyState('Select a document type to load templates.'));
+    resetSubsectionDropdown(true);
+    return;
+  }
+
+  if (!state.selectedSector) {
+    sectionList.appendChild(createEmptyState('Pick a sector next to see its templates.'));
+    resetSubsectionDropdown(true);
+    return;
+  }
+
+  if (!state.selectedClient) {
+    sectionList.appendChild(createEmptyState('Choose the sector template or a client branch above.'));
+    resetSubsectionDropdown(true);
+    return;
+  }
+
   const visibleTemplates = getVisibleTemplates();
 
   if (visibleTemplates.length === 0) {
-    const emptyState = document.createElement('li');
-    emptyState.innerHTML = '<div>No templates match the current filters.</div>';
-    sectionList.appendChild(emptyState);
+    sectionList.appendChild(createEmptyState(
+      state.selectedClient === 'base'
+        ? 'No sections yet. Use the form above to create the sector template.'
+        : 'No sections exist for this client/use case. Copy from the sector template to get started.'
+    ));
   }
 
   visibleTemplates.forEach(template => {
-    const scopeLabel = template?.clientTag ? `Client/use case: ${template.clientTag}` : 'Sector default';
+    const scopeLabel = template?.clientTag ? `Client/use case: ${template.clientTag}` : 'Sector template';
     const li = document.createElement('li');
     li.innerHTML = `
       <div>
@@ -178,16 +207,46 @@ function renderSections() {
     if (!template?.id) return;
     const option = document.createElement('option');
     option.value = template.id;
-    const suffix = template.clientTag ? ` (${template.clientTag})` : ' (sector default)';
+    const suffix = template.clientTag ? ` (${template.clientTag})` : ' (sector template)';
     option.textContent = `${template.sectionTitle}${suffix}`;
     paragraphSectionSelect.appendChild(option);
   });
+  paragraphSectionSelect.disabled = visibleTemplates.length === 0;
 }
 
 function renderParagraphs() {
   if (!paragraphList) return;
   paragraphList.innerHTML = '';
+  if (!state.selectedDocType) {
+    paragraphList.appendChild(createEmptyState('Select a document type to manage subsections.'));
+    disableParagraphSelect(true);
+    return;
+  }
+
+  if (!state.selectedSector) {
+    paragraphList.appendChild(createEmptyState('Pick a sector to continue.'));
+    disableParagraphSelect(true);
+    return;
+  }
+
+  if (!state.selectedClient) {
+    paragraphList.appendChild(createEmptyState('Choose a template scope to display its subsections.'));
+    disableParagraphSelect(true);
+    return;
+  }
+
   const templatesToRender = getVisibleTemplates();
+  disableParagraphSelect(templatesToRender.length === 0);
+
+  if (templatesToRender.length === 0) {
+    paragraphList.appendChild(createEmptyState(
+      state.selectedClient === 'base'
+        ? 'No subsections yet. Add section content on the left, then create subsections here.'
+        : 'This client branch has no subsections yet.'
+    ));
+    return;
+  }
+
   templatesToRender.forEach(template => {
     if (template.subsections && Array.isArray(template.subsections)) {
       template.subsections.forEach(sub => {
@@ -198,7 +257,7 @@ function renderParagraphs() {
           <div>
             <strong>${sub.title}</strong>
             <small>Section: ${template.sectionTitle}</small>
-            <small>${template?.clientTag ? `Client: ${template.clientTag}` : 'Sector default'}</small>
+            <small>${template?.clientTag ? `Client: ${template.clientTag}` : 'Sector template'}</small>
             ${detail ? `<small>Task: ${detail}</small>` : ''}
             ${style ? `<small>Style: ${style}</small>` : ''}
           </div>
@@ -215,13 +274,93 @@ function renderParagraphs() {
 
 // --- Helpers ---
 
+function renderBranchPicker() {
+  if (!branchButtonsContainer || !branchPickerHint) return;
+
+  if (!state.selectedDocType) {
+    branchButtonsContainer.innerHTML = '';
+    branchPickerHint.textContent = 'Select a document type to continue.';
+    state.selectedClient = null;
+    return;
+  }
+
+  if (!state.selectedSector) {
+    branchButtonsContainer.innerHTML = '';
+    branchPickerHint.textContent = 'Pick a sector to unlock template branches.';
+    state.selectedClient = null;
+    return;
+  }
+
+  const clientOptions = getClientOptions();
+  branchButtonsContainer.innerHTML = '';
+
+  const buttons = [createBranchButton('base', 'Sector template')];
+  clientOptions.forEach(client => buttons.push(createBranchButton(client, client)));
+  buttons.forEach(btn => branchButtonsContainer.appendChild(btn));
+
+  if (!state.selectedClient) {
+    state.selectedClient = 'base';
+  } else if (state.selectedClient !== 'base' && !clientOptions.includes(state.selectedClient)) {
+    state.selectedClient = clientOptions[0] || 'base';
+  }
+
+  branchPickerHint.textContent = buttons.length > 1
+    ? 'Pick the branch you want to view, then edit/copy sections below.'
+    : 'Currently viewing the sector template.';
+}
+
+function createBranchButton(value, label) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `branch-button${state.selectedClient === value ? ' active' : ''}`;
+  button.textContent = label;
+  button.addEventListener('click', () => {
+    if (state.selectedClient === value) return;
+    state.selectedClient = value;
+    resetSectionForm();
+    resetParagraphForm();
+    render();
+  });
+  return button;
+}
+
+function createEmptyState(message) {
+  const li = document.createElement('li');
+  li.className = 'empty-state';
+  li.innerHTML = `<div>${message}</div>`;
+  return li;
+}
+
+function resetSubsectionDropdown(disable) {
+  if (!paragraphSectionSelect) return;
+  paragraphSectionSelect.innerHTML = '<option value="">Select a section...</option>';
+  paragraphSectionSelect.disabled = disable;
+  if (disable) {
+    paragraphSectionSelect.value = '';
+  }
+}
+
+function disableParagraphSelect(disabled) {
+  if (!paragraphSectionSelect) return;
+  paragraphSectionSelect.disabled = disabled;
+  if (disabled) {
+    paragraphSectionSelect.value = '';
+  }
+}
+
 function resetSectionForm() {
   if (!addSectionForm) return;
   addSectionForm.reset();
   state.editingSectionId = null;
-  if (sectionDocTypeSelect) sectionDocTypeSelect.value = state.selectedDocType || '';
-  if (sectionSectorSelect) sectionSectorSelect.value = state.selectedSector || '';
-  if (sectionClientInput) sectionClientInput.value = state.selectedClient && state.selectedClient !== 'all' && state.selectedClient !== 'base' ? state.selectedClient : '';
+  if (sectionDocTypeSelect) {
+    sectionDocTypeSelect.value = state.selectedDocType || '';
+    sectionDocTypeSelect.disabled = !state.selectedDocType;
+  }
+  if (sectionSectorSelect) {
+    sectionSectorSelect.value = state.selectedSector || '';
+    sectionSectorSelect.disabled = !state.selectedSector;
+  }
+  if (sectionClientInput) sectionClientInput.value = state.selectedClient && state.selectedClient !== 'base' ? state.selectedClient : '';
   if (sectionSubmitButton) sectionSubmitButton.textContent = 'Add Section';
   if (cancelSectionEditButton) cancelSectionEditButton.hidden = true;
 }
@@ -244,7 +383,7 @@ function resetParagraphForm() {
   addParagraphForm.reset();
   state.editingSubsection = null;
   if (paragraphSectionSelect) {
-    paragraphSectionSelect.disabled = false;
+    paragraphSectionSelect.disabled = !state.selectedClient;
     paragraphSectionSelect.value = '';
   }
   if (paragraphSubmitButton) paragraphSubmitButton.textContent = 'Add Subsection';
@@ -472,7 +611,12 @@ if (sectionList) {
 if (filterDocTypeSelect) {
   filterDocTypeSelect.addEventListener('change', () => {
     state.selectedDocType = filterDocTypeSelect.value;
-    state.selectedClient = 'all';
+    state.selectedSector = '';
+    if (filterSectorSelect) {
+      filterSectorSelect.value = '';
+      filterSectorSelect.disabled = !state.selectedDocType;
+    }
+    state.selectedClient = null;
     resetSectionForm();
     resetParagraphForm();
     fetchTemplates();
@@ -482,19 +626,10 @@ if (filterDocTypeSelect) {
 if (filterSectorSelect) {
   filterSectorSelect.addEventListener('change', () => {
     state.selectedSector = filterSectorSelect.value;
-    state.selectedClient = 'all';
+    state.selectedClient = state.selectedSector ? 'base' : null;
     resetSectionForm();
     resetParagraphForm();
     fetchTemplates();
-  });
-}
-
-if (filterClientSelect) {
-  filterClientSelect.addEventListener('change', () => {
-    state.selectedClient = filterClientSelect.value;
-    resetSectionForm();
-    resetParagraphForm();
-    render();
   });
 }
 
@@ -502,10 +637,18 @@ if (filterClientSelect) {
 // --- Initial Load ---
 document.addEventListener('DOMContentLoaded', () => {
   if (filterDocTypeSelect) filterDocTypeSelect.value = state.selectedDocType;
-  if (filterSectorSelect) filterSectorSelect.value = state.selectedSector;
-  if (filterClientSelect) filterClientSelect.value = state.selectedClient;
-  if (sectionDocTypeSelect) sectionDocTypeSelect.value = state.selectedDocType;
-  if (sectionSectorSelect) sectionSectorSelect.value = state.selectedSector;
+  if (filterSectorSelect) {
+    filterSectorSelect.value = state.selectedSector;
+    filterSectorSelect.disabled = !state.selectedDocType;
+  }
+  if (sectionDocTypeSelect) {
+    sectionDocTypeSelect.value = state.selectedDocType;
+    sectionDocTypeSelect.disabled = !state.selectedDocType;
+  }
+  if (sectionSectorSelect) {
+    sectionSectorSelect.value = state.selectedSector;
+    sectionSectorSelect.disabled = !state.selectedSector;
+  }
   // Load templates for the default selections when the page loads
   fetchTemplates();
 });
@@ -513,8 +656,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- Template helpers ---
 
 function getVisibleTemplates() {
-  if (state.selectedClient === 'all') {
-    return state.templates;
+  if (!state.selectedClient) {
+    return [];
   }
   if (state.selectedClient === 'base') {
     return state.templates.filter(t => !t.clientTag);
@@ -529,46 +672,21 @@ function getClientOptions() {
   return [...new Set(options)].sort((a, b) => a.localeCompare(b));
 }
 
-function renderClientFilterOptions() {
-  if (!filterClientSelect) return;
-  const currentValue = state.selectedClient;
-  const options = getClientOptions();
-  filterClientSelect.innerHTML = '';
-
-  const baseOptions = [
-    { value: 'all', label: 'All templates' },
-    { value: 'base', label: 'Sector default only' }
-  ];
-  baseOptions.forEach(opt => {
-    const option = document.createElement('option');
-    option.value = opt.value;
-    option.textContent = opt.label;
-    filterClientSelect.appendChild(option);
-  });
-
-  options.forEach(client => {
-    const option = document.createElement('option');
-    option.value = client;
-    option.textContent = client;
-    filterClientSelect.appendChild(option);
-  });
-
-  if (currentValue !== 'all' && currentValue !== 'base' && !options.includes(currentValue)) {
-    state.selectedClient = 'all';
-  }
-
-  filterClientSelect.value = state.selectedClient;
-}
-
 function renderTemplateScopeLabel() {
   if (!templateScopeLabel) return;
-  if (state.selectedClient === 'all') {
-    templateScopeLabel.textContent = 'All templates (select a client to narrow down)';
-  } else if (state.selectedClient === 'base') {
-    templateScopeLabel.textContent = 'Sector default template';
-  } else {
-    templateScopeLabel.textContent = `Client / use case: ${state.selectedClient}`;
+  if (!state.selectedDocType || !state.selectedSector) {
+    templateScopeLabel.textContent = 'Select a document type and sector to manage subsections.';
+    return;
   }
+  if (!state.selectedClient) {
+    templateScopeLabel.textContent = 'Choose the sector template or a client branch to load subsections.';
+    return;
+  }
+  if (state.selectedClient === 'base') {
+    templateScopeLabel.textContent = 'Sector template';
+    return;
+  }
+  templateScopeLabel.textContent = `Client / use case: ${state.selectedClient}`;
 }
 
 function slugify(value) {

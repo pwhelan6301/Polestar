@@ -32,16 +32,19 @@
         <h2>Manage Sections</h2>
         <div class="field-row" style="margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
           <div class="field-group">
-            <label for="filter-doc-type">Document Type</label>
+            <label for="filter-doc-type">Step 1: Document Type</label>
             <select id="filter-doc-type">
               <option value="">Select document type…</option>
               <option value="IM">Information Memorandum (IM)</option>
               <option value="SectorValuation">Sector valuation</option>
             </select>
+            <p class="field-hint">
+              Start by choosing the document type you want to curate.
+            </p>
           </div>
           <div class="field-group">
-            <label for="filter-sector">Sector</label>
-            <select id="filter-sector">
+            <label for="filter-sector">Step 2: Sector</label>
+            <select id="filter-sector" disabled>
               <option value="">Select sector…</option>
               <option value="Business Services">Business Services</option>
               <option value="Software, Media & Technology">Software, Media & Technology</option>
@@ -49,20 +52,20 @@
               <option value="Manufacturing & Industrial">Manufacturing & Industrial</option>
               <option value="Health & Education">Health & Education</option>
             </select>
-          </div>
-          <div class="field-group">
-            <label for="filter-client">Client / use case</label>
-            <select id="filter-client">
-              <option value="all">All templates</option>
-              <option value="base">Sector default only</option>
-            </select>
             <p class="field-hint">
-              Copy a sector template, then choose the client/use case here to edit that branch.
+              Sectors unlock once a document type is selected.
             </p>
           </div>
         </div>
-        <p class="field-hint" style="margin-top: -0.5rem;">
-          Choose the document type and sector you want to manage, then edit or add section prompts below.
+        <div class="branch-picker card-subsection" id="branch-picker">
+          <h3>Step 3: Choose template scope</h3>
+          <p class="field-hint" id="branch-picker-hint">
+            Select a document type and sector to see available templates.
+          </p>
+          <div id="branch-buttons" class="branch-buttons"></div>
+        </div>
+        <p class="field-hint" style="margin-top: 1rem;">
+          Once you’ve selected a template scope, edit or add section prompts below.
         </p>
         <form id="add-section-form">
           <div class="field-row">
@@ -122,9 +125,9 @@
       <section class="card">
         <h2>Manage Subsections</h2>
         <div class="template-scope">
-          <strong id="template-scope-label">All templates (select a client to narrow down)</strong>
+          <strong id="template-scope-label">Select a document type, sector, and template scope to get started.</strong>
           <p class="field-hint">
-            Subsections shown here are based on the template scope chosen on the left.
+            Subsections shown here are based on the template branch chosen on the left.
           </p>
         </div>
         <form id="add-paragraph-form">
@@ -180,5 +183,43 @@
   align-items: center;
   padding: 0.5rem 0;
   border-bottom: 1px solid var(--border-subtle);
+}
+.item-list li.empty-state {
+  justify-content: flex-start;
+  color: var(--text-soft);
+}
+.card-subsection {
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  background: var(--surface-muted);
+}
+.branch-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.branch-button {
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.branch-button:hover {
+  border-color: var(--text);
+}
+.branch-button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+}
+.branch-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

@@ -17,8 +17,8 @@ Polestar Document Drafter is an Azure Static Web Apps project that lets teams as
 - **Dynamic request form** – document types and sectors drive the available sections. Once a section is chosen the UI surfaces individual subsections that can be toggled on/off, and the payload preview updates live.
 - **Status + output panel** – shows submission progress, the JSON payload we send to the Logic App, and the eventual response rendered as labelled fields. There is a built‑in “Copy” helper for quick sharing.
 - **Authentication helpers** – the shell surfaces the currently signed-in Static Web Apps user and provides sign-in/out links. The drafting page links straight to the prompt-management UI so editors can adjust prompts without redeploying.
-- **Prompt manager** – `/manage-prompts.html` lets authorised staff filter by doc type + sector, edit section metadata (system/user prompts), and CRUD subsections. Changes are persisted via the `/api/prompts` Azure Function into Cosmos DB, so the drafting form immediately reflects updates.
-- **Template branching** – prompt templates can now be filtered by doc type → sector → client/use case. Start from the sector default, then use “Copy to new template” to create a client-specific branch while keeping the base template untouched.
+- **Prompt manager** – `/manage-prompts.html` now walks editors through doc type → sector → template scope before exposing the relevant sections. Once a branch is selected they can edit section metadata (system/user prompts) and CRUD subsections, with every change flowing straight into Cosmos DB through `/api/prompts`.
+- **Template branching** – prompt templates can now be filtered by doc type → sector → client/use case. Start from the guided “Sector template” view, then use “Copy to new template” to create a client-specific branch while keeping the base template untouched.
 
 ## Backend services
 
@@ -98,10 +98,12 @@ Polestar Document Drafter is an Azure Static Web Apps project that lets teams as
 ## Authoring prompts
 
 1. Navigate to **Manage Prompts** (link in the top bar).
-2. Choose the target document type + sector filter to load existing sections, then (optionally) pick a client/use case to focus on a branch of that template.
-3. Add or edit a section to set the system prompt, user prompt, and metadata. Use **Copy to new template** to duplicate the sector default for a specific client/use case – the new branch inherits all subsections and can be customised without touching the original.
-4. Add subsections under a section, defining the title, task description, and style. These show up as selectable checkboxes in the drafting UI so requesters can include/exclude specific content.
-5. Deleted sections immediately remove the associated subsections, and the drafting UI clears cached prompts.
+2. **Step 1 – Document type:** select the doc type you want to curate. Until you choose one, the downstream controls stay disabled.
+3. **Step 2 – Sector:** once the doc type is chosen, pick the sector to manage. This unlocks the template scope controls.
+4. **Step 3 – Template scope:** pick whether you’re working on the sector template (“base”) or a client/use case branch. Use **Copy to new template** in the section list to duplicate a sector section into a named client branch.
+5. Add or edit sections to tweak the system prompt, user prompt, and metadata for the currently selected branch. All saves go straight into Cosmos DB, so the drafting form immediately reflects the updates.
+6. Add subsections under a section, defining the title, task description, and style. These show up as selectable checkboxes in the drafting UI so requesters can include/exclude specific content.
+7. Deleted sections immediately remove the associated subsections, and the drafting UI clears cached prompts.
 
 ## Deployment notes
 
