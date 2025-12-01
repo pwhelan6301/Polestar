@@ -92,7 +92,7 @@ Polestar Document Drafter is an Azure Static Web Apps project that lets teams as
    - Full Static Web Apps emulation (recommended so `/api/*` is proxied and `/.auth/*` works):
 
      ```bash
-     swa start http://localhost:4280 --api-location ./api --swa-config staticwebapp.config.json
+     swa start . --api-location ./api
      ```
 
    Open `http://localhost:4280` to interact with the drafting UI and `http://localhost:4280/manage-prompts.html` for prompt management.
