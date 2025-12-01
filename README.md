@@ -89,7 +89,7 @@ Polestar Document Drafter is an Azure Static Web Apps project that lets teams as
 
 4. **Serve the frontend**
    - Quick test: run any static file server from the repo root (`python -m http.server 4280`).
-   - Full Static Web Apps emulation (recommended so `/api/*` is proxied and `/.auth/*` works):
+   - Full Static Web Apps emulation (recommended so `/api/*` is proxied and `/.auth/*` works). From the repo root run:
 
      ```bash
      swa start . --api-location ./api
