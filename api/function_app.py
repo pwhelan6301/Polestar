@@ -56,9 +56,9 @@ def _get_draft_partition_key(draft: Dict[str, Any]) -> Optional[str]:
     """
     Drafts in Cosmos DB are partitioned by their document type (`/doctype`).
     We have historically written this field as `docType`, `doc_type`, or `doctype`,
-    so attempt the variations before giving up.
+    but some legacy containers were partitioned on `sector`. Try all variations before giving up.
     """
-    for key in ("docType", "doc_type", "doctype"):
+    for key in ("docType", "doc_type", "doctype", "sector"):
         value = draft.get(key)
         if value:
             return value
