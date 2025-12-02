@@ -47,11 +47,13 @@ jobs:
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-      - name: Deploy DBPipeline Azure Function App
-        uses: Azure/functions-action@v1
-        with:
-          app-name: DBPipeline
-          package: api
+      - name: Install Azure Functions Core Tools
+        run: |
+          sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
+      - name: Publish DBPipeline Azure Function App
+        run: |
+          cd api
+          func azure functionapp publish DBPipeline --python
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
