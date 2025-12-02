@@ -41,6 +41,10 @@ const draftStatusMsg = document.getElementById('draft-status-message');
 const draftExportBtn = document.getElementById('draft-export-btn');
 const draftCopyBtn = document.getElementById('draft-copy-btn');
 const draftDeleteBtn = document.getElementById('draft-delete-btn');
+const draftEditBtn = document.getElementById('draft-edit-btn');
+const draftApplyBtn = document.getElementById('draft-apply-btn');
+const draftSuggestBtn = document.getElementById('draft-suggest-btn');
+const draftCancelEditBtn = document.getElementById('draft-cancel-edit-btn');
 
 const filterDocSelect = document.getElementById('filter-draft-doc');
 const filterSectorSelect = document.getElementById('filter-draft-sector');
@@ -51,6 +55,13 @@ const selectionToolbar = document.getElementById('selection-toolbar');
 const selectionAddNoteBtn = document.getElementById('selection-add-note');
 const selectionInlineBtn = document.getElementById('selection-inline-note');
 let currentSelectionData = null;
+const editorState = {
+  isEditing: false,
+  sectionDrafts: {},
+  originalSections: {},
+  contentDraft: '',
+  originalContent: ''
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   populateFilters();
@@ -186,6 +197,19 @@ function attachDetailListeners() {
     selectionInlineBtn.addEventListener('click', handleInlineAnnotation);
   }
 
+  if (draftEditBtn) {
+    draftEditBtn.addEventListener('click', enterDraftEditMode);
+  }
+  if (draftApplyBtn) {
+    draftApplyBtn.addEventListener('click', applyDraftEdits);
+  }
+  if (draftSuggestBtn) {
+    draftSuggestBtn.addEventListener('click', suggestDraftEdits);
+  }
+  if (draftCancelEditBtn) {
+    draftCancelEditBtn.addEventListener('click', () => exitDraftEditMode(true));
+  }
+
   if (draftDeleteBtn) {
     draftDeleteBtn.addEventListener('click', async () => {
       const draft = getSelectedDraft();
@@ -195,6 +219,9 @@ function attachDetailListeners() {
       draftDeleteBtn.disabled = true;
       try {
         await deleteDraftFromServer(draft.id);
+        if (editorState.isEditing) {
+          exitDraftEditMode(true);
+        }
         state.drafts = state.drafts.filter(d => d.id !== draft.id);
         state.selectedDraftId = state.drafts[0]?.id || null;
         showStatusMessage('Draft deleted.', 'success');
@@ -253,6 +280,11 @@ function renderDrafts() {
       </div>
     `;
     card.addEventListener('click', () => {
+      if (editorState.isEditing) {
+        const confirmSwitch = window.confirm('Discard your unsaved edits?');
+        if (!confirmSwitch) return;
+        exitDraftEditMode(true);
+      }
       state.selectedDraftId = draft.id;
       renderDrafts();
     });
@@ -273,6 +305,7 @@ function renderDraftDetail() {
     if (draftMetaEl) draftMetaEl.innerHTML = '<p>Select a draft from the left to see its content.</p>';
     if (draftContentEl) draftContentEl.innerHTML = '<p class="field-hint">No draft selected.</p>';
     updateDetailControls(false);
+    updateEditButtons();
     return;
   }
 
@@ -287,21 +320,27 @@ function renderDraftDetail() {
 
   if (draftContentEl) {
     draftContentEl.innerHTML = renderDraftContent(draft);
+    if (editorState.isEditing) {
+      initializeEditInputs();
+    }
   }
 
   if (draftStatusSelect) {
     draftStatusSelect.value = draft.status || '';
-    draftStatusSelect.disabled = false;
+    draftStatusSelect.disabled = editorState.isEditing;
   }
 
   if (draftAnnotations) {
     draftAnnotations.value = draft.annotations || '';
-    draftAnnotations.disabled = false;
+    draftAnnotations.disabled = editorState.isEditing;
   }
 
   if (draftSaveBtn) {
-    draftSaveBtn.disabled = true;
+    draftSaveBtn.disabled = editorState.isEditing;
   }
+
+  updateDetailControls(!editorState.isEditing);
+  updateEditButtons();
 }
 
 function updateDetailControls(enabled) {
@@ -380,6 +419,13 @@ function showStatusMessage(message, type) {
 }
 
 function renderDraftContent(draft) {
+  if (editorState.isEditing) {
+    if (Array.isArray(draft.sections) && draft.sections.length > 0) {
+      return draft.sections.map((section, index) => renderEditableSection(section, index)).join('');
+    }
+    return renderEditableContent(draft);
+  }
+
   if (Array.isArray(draft.sections) && draft.sections.length > 0) {
     return draft.sections.map(renderDraftSection).join('');
   }
@@ -424,6 +470,34 @@ function formatDraftParagraphs(text) {
     .split(/\n{2,}/)
     .map(block => `<p>${block.replace(/\n/g, '<br>')}</p>`)
     .join('');
+}
+
+function renderEditableSection(section, index) {
+  const key = getSectionKey(section, index);
+  const currentValue = editorState.sectionDrafts[key] ?? section.body ?? section.content ?? '';
+  const title = section?.title || 'Untitled section';
+  const escapedValue = escapeHtml(currentValue);
+  return `
+    <section class="draft-section draft-section--editing">
+      <div class="draft-section__header">
+        <h4>${escapeHtml(title)}</h4>
+      </div>
+      <div class="draft-section__body">
+        <textarea class="section-edit-input" data-section-key="${escapeAttribute(key)}" rows="8">${escapedValue}</textarea>
+      </div>
+    </section>
+  `;
+}
+
+function renderEditableContent(draft) {
+  const value = editorState.contentDraft ?? draft.content ?? '';
+  return `
+    <section class="draft-section draft-section--editing">
+      <div class="draft-section__body">
+        <textarea class="content-edit-input" rows="12">${escapeHtml(value)}</textarea>
+      </div>
+    </section>
+  `;
 }
 
 function formatDate(dateString) {
@@ -495,7 +569,10 @@ function getSectionTitleFromNode(node) {
 }
 
 function handleSelectionChange() {
-  if (!draftContentEl || !selectionToolbar) return;
+  if (!draftContentEl || !selectionToolbar || editorState.isEditing) {
+    hideSelectionToolbar();
+    return;
+  }
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
     hideSelectionToolbar();
@@ -650,6 +727,168 @@ async function deleteDraftFromServer(draftId) {
     throw new Error(errorText || 'Failed to delete draft');
   }
   return response.json();
+}
+
+function initializeEditInputs() {
+  if (!editorState.isEditing || !draftContentEl) return;
+  draftContentEl.querySelectorAll('.section-edit-input').forEach((input) => {
+    input.addEventListener('input', (event) => {
+      const key = event.target.dataset.sectionKey;
+      editorState.sectionDrafts[key] = event.target.value;
+    });
+  });
+  const contentInput = draftContentEl.querySelector('.content-edit-input');
+  if (contentInput) {
+    contentInput.addEventListener('input', (event) => {
+      editorState.contentDraft = event.target.value;
+    });
+  }
+}
+
+function enterDraftEditMode() {
+  const draft = getSelectedDraft();
+  if (!draft || editorState.isEditing) return;
+  editorState.isEditing = true;
+  editorState.sectionDrafts = {};
+  editorState.originalSections = {};
+  editorState.contentDraft = '';
+  editorState.originalContent = '';
+  if (Array.isArray(draft.sections) && draft.sections.length > 0) {
+    draft.sections.forEach((section, index) => {
+      const key = getSectionKey(section, index);
+      const value = section.body ?? section.content ?? '';
+      editorState.sectionDrafts[key] = value;
+      editorState.originalSections[key] = value;
+    });
+  } else {
+    editorState.contentDraft = draft.content ?? '';
+    editorState.originalContent = draft.content ?? '';
+  }
+  updateEditButtons();
+  renderDraftDetail();
+}
+
+function exitDraftEditMode(resetValues = false) {
+  editorState.isEditing = false;
+  if (resetValues) {
+    editorState.sectionDrafts = {};
+    editorState.originalSections = {};
+    editorState.contentDraft = '';
+    editorState.originalContent = '';
+  }
+  updateEditButtons();
+  renderDraftDetail();
+}
+
+function updateEditButtons() {
+  if (!draftEditBtn || !draftApplyBtn || !draftSuggestBtn || !draftCancelEditBtn) return;
+  const hasDraft = !!getSelectedDraft();
+  draftEditBtn.hidden = editorState.isEditing || !hasDraft;
+  draftApplyBtn.hidden = !editorState.isEditing;
+  draftSuggestBtn.hidden = !editorState.isEditing;
+  draftCancelEditBtn.hidden = !editorState.isEditing;
+  if (draftDeleteBtn) {
+    draftDeleteBtn.disabled = editorState.isEditing || !hasDraft;
+  }
+  if (draftCopyBtn) {
+    draftCopyBtn.disabled = editorState.isEditing || !hasDraft;
+  }
+  if (draftExportBtn) {
+    draftExportBtn.disabled = editorState.isEditing || !hasDraft;
+  }
+}
+
+function getSectionKey(section, index) {
+  return section?.id || section?.title || `section-${index}`;
+}
+
+async function applyDraftEdits() {
+  const draft = getSelectedDraft();
+  if (!draft) return;
+  const update = {};
+  let changed = false;
+  if (Array.isArray(draft.sections) && draft.sections.length > 0) {
+    const newSections = draft.sections.map((section, index) => {
+      const key = getSectionKey(section, index);
+      const original = editorState.originalSections[key] ?? '';
+      const nextValue = editorState.sectionDrafts[key];
+      if (typeof nextValue === 'string' && normalizeText(nextValue) !== normalizeText(original)) {
+        changed = true;
+        return { ...section, body: nextValue, content: nextValue };
+      }
+      return section;
+    });
+    if (changed) {
+      update.sections = newSections;
+    }
+  } else {
+    const originalContent = editorState.originalContent ?? '';
+    const nextContent = editorState.contentDraft;
+    if (typeof nextContent === 'string' && normalizeText(nextContent) !== normalizeText(originalContent)) {
+      changed = true;
+      update.content = nextContent;
+    }
+  }
+
+  if (!changed) {
+    showStatusMessage('No changes to apply.', 'error');
+    return;
+  }
+
+  await queueDraftSave(update);
+  exitDraftEditMode(true);
+}
+
+async function suggestDraftEdits() {
+  const draft = getSelectedDraft();
+  if (!draft) return;
+  const update = {};
+  let changed = false;
+
+  if (Array.isArray(draft.sections) && draft.sections.length > 0) {
+    const newSections = draft.sections.map((section, index) => {
+      const key = getSectionKey(section, index);
+      const original = editorState.originalSections[key] ?? '';
+      const nextValue = editorState.sectionDrafts[key];
+      if (typeof nextValue === 'string' && normalizeText(nextValue) !== normalizeText(original)) {
+        changed = true;
+        const note = buildSuggestionNote(section.title || 'section', nextValue);
+        const updatedText = original ? `${original}\n\n${note}` : note;
+        return { ...section, body: updatedText, content: updatedText };
+      }
+      return section;
+    });
+    if (changed) {
+      update.sections = newSections;
+    }
+  } else {
+    const originalContent = editorState.originalContent ?? '';
+    const nextContent = editorState.contentDraft;
+    if (typeof nextContent === 'string' && normalizeText(nextContent) !== normalizeText(originalContent)) {
+      changed = true;
+      const note = buildSuggestionNote('document', nextContent);
+      const updatedText = originalContent ? `${originalContent}\n\n${note}` : note;
+      update.content = updatedText;
+    }
+  }
+
+  if (!changed) {
+    showStatusMessage('No edits to convert into suggestions.', 'error');
+    return;
+  }
+
+  await queueDraftSave(update);
+  exitDraftEditMode(true);
+}
+
+function normalizeText(value) {
+  return (value || '').trim();
+}
+
+function buildSuggestionNote(label, suggestionText) {
+  const trimmed = (suggestionText || '').trim();
+  const limited = trimmed.length > 1200 ? `${trimmed.slice(0, 1200)}…` : trimmed;
+  return `[Suggestion for ${label}: ${limited}]`;
 }
 
 function getPlaceholderDrafts() {

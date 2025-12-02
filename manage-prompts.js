@@ -41,9 +41,11 @@ const sectionSystemInput = document.getElementById('section-system-prompt');
 const sectionUserInput = document.getElementById('section-user-prompt');
 const sectionSubmitButton = document.getElementById('section-submit-btn');
 const cancelSectionEditButton = document.getElementById('cancel-section-edit');
+const sectionSuggestButton = document.getElementById('section-suggest-btn');
 const paragraphStyleInput = document.getElementById('paragraph-style');
 const paragraphSubmitButton = document.getElementById('paragraph-submit-btn');
 const cancelParagraphEditButton = document.getElementById('cancel-paragraph-edit');
+const paragraphSuggestButton = document.getElementById('paragraph-suggest-btn');
 const sectionNameInput = document.getElementById('new-section-name');
 const paragraphHeaderInput = document.getElementById('paragraph-header');
 const paragraphTaskInput = document.getElementById('paragraph-task');
@@ -61,6 +63,8 @@ const clientPickerConfirmButton = document.getElementById('client-picker-confirm
 const ADD_CLIENT_OPTION = (window.ClientRegistry && window.ClientRegistry.ADD_OPTION_VALUE) || '__add_client__';
 let clientRegistry = [];
 let clientPickerResolver = null;
+let originalSectionSnapshot = null;
+let originalSubsectionSnapshot = null;
 
 async function refreshClientRegistry() {
   if (!window.ClientRegistry) {
@@ -446,6 +450,8 @@ function renderSections() {
 
   visibleTemplates.forEach(template => {
     const scopeLabel = template?.clientTag ? `Client/use case: ${template.clientTag}` : 'Sector template';
+    const systemDisplay = formatAnnotatedPromptText(template?.systemPrompt);
+    const userDisplay = formatAnnotatedPromptText(template?.userPrompt);
     const li = document.createElement('li');
     li.innerHTML = `
       <div>
@@ -453,8 +459,8 @@ function renderSections() {
         <small>Doc type: ${template?.docType || 'Not set'}</small>
         <small>Sector: ${template?.sector || 'Not set'}</small>
         <small>${scopeLabel}</small>
-        <small>System: ${template?.systemPrompt || 'Not set'}</small>
-        <small>User: ${template?.userPrompt || 'Not set'}</small>
+        <small>System: ${systemDisplay}</small>
+        <small>User: ${userDisplay}</small>
       </div>
       <div>
         <button class="link-ghost" data-action="edit-section" data-template-id="${template?.id ?? ''}">View / Edit</button>
@@ -517,13 +523,15 @@ function renderParagraphs() {
         const li = document.createElement('li');
         const detail = sub.detailTaskDescription || sub.prompt || '';
         const style = sub.styleQuery || '';
+        const detailDisplay = detail ? formatAnnotatedPromptText(detail) : '';
+        const styleDisplay = style ? formatAnnotatedPromptText(style) : '';
         li.innerHTML = `
           <div>
             <strong>${sub.title}</strong>
             <small>Section: ${template.sectionTitle}</small>
             <small>${template?.clientTag ? `Client: ${template.clientTag}` : 'Sector template'}</small>
-            ${detail ? `<small>Task: ${detail}</small>` : ''}
-            ${style ? `<small>Style: ${style}</small>` : ''}
+            ${detail ? `<small>Task: ${detailDisplay}</small>` : ''}
+            ${style ? `<small>Style: ${styleDisplay}</small>` : ''}
           </div>
           <div>
             <button class="link-ghost" data-template-id="${template.id}" data-subsection-id="${sub.id}" data-action="edit">Edit</button>
@@ -616,6 +624,7 @@ function resetSectionForm() {
   if (!addSectionForm) return;
   addSectionForm.reset();
   state.editingSectionId = null;
+  originalSectionSnapshot = null;
   if (sectionDocTypeSelect) {
     sectionDocTypeSelect.value = state.selectedDocType || '';
     sectionDocTypeSelect.disabled = !state.selectedDocType;
@@ -630,11 +639,13 @@ function resetSectionForm() {
   }
   if (sectionSubmitButton) sectionSubmitButton.textContent = 'Add Section';
   if (cancelSectionEditButton) cancelSectionEditButton.hidden = true;
+  if (sectionSuggestButton) sectionSuggestButton.hidden = true;
 }
 
 function populateSectionForm(template) {
   if (!addSectionForm || !template) return;
   state.editingSectionId = template.id;
+  originalSectionSnapshot = JSON.parse(JSON.stringify(template));
   if (sectionNameInput) sectionNameInput.value = template.sectionTitle || '';
   if (sectionDocTypeSelect) sectionDocTypeSelect.value = template.docType || '';
   if (sectionSectorSelect) sectionSectorSelect.value = template.sector || '';
@@ -643,18 +654,21 @@ function populateSectionForm(template) {
   if (sectionUserInput) sectionUserInput.value = template.userPrompt || '';
   if (sectionSubmitButton) sectionSubmitButton.textContent = 'Save Changes';
   if (cancelSectionEditButton) cancelSectionEditButton.hidden = false;
+  if (sectionSuggestButton) sectionSuggestButton.hidden = false;
 }
 
 function resetParagraphForm() {
   if (!addParagraphForm) return;
   addParagraphForm.reset();
   state.editingSubsection = null;
+  originalSubsectionSnapshot = null;
   if (paragraphSectionSelect) {
     paragraphSectionSelect.disabled = !state.selectedClient;
     paragraphSectionSelect.value = '';
   }
   if (paragraphSubmitButton) paragraphSubmitButton.textContent = 'Add Subsection';
   if (cancelParagraphEditButton) cancelParagraphEditButton.hidden = true;
+  if (paragraphSuggestButton) paragraphSuggestButton.hidden = true;
 }
 
 function populateParagraphForm(template, subsection) {
@@ -663,6 +677,7 @@ function populateParagraphForm(template, subsection) {
     templateId: template.id,
     subsectionId: subsection.id
   };
+  originalSubsectionSnapshot = JSON.parse(JSON.stringify(subsection));
   if (paragraphSectionSelect) {
     paragraphSectionSelect.value = template.id;
     paragraphSectionSelect.disabled = true;
@@ -672,6 +687,7 @@ function populateParagraphForm(template, subsection) {
   if (paragraphStyleInput) paragraphStyleInput.value = subsection.styleQuery || '';
   if (paragraphSubmitButton) paragraphSubmitButton.textContent = 'Save Changes';
   if (cancelParagraphEditButton) cancelParagraphEditButton.hidden = false;
+  if (paragraphSuggestButton) paragraphSuggestButton.hidden = false;
 }
 
 // --- Event Listeners ---
@@ -737,6 +753,10 @@ if (addSectionForm) {
 
 if (cancelSectionEditButton) {
   cancelSectionEditButton.addEventListener('click', resetSectionForm);
+}
+
+if (sectionSuggestButton) {
+  sectionSuggestButton.addEventListener('click', handleSectionSuggestion);
 }
 
 if (addParagraphForm) {
@@ -807,6 +827,10 @@ if (addParagraphForm) {
 
 if (cancelParagraphEditButton) {
   cancelParagraphEditButton.addEventListener('click', resetParagraphForm);
+}
+
+if (paragraphSuggestButton) {
+  paragraphSuggestButton.addEventListener('click', handleParagraphSuggestion);
 }
 
 if (paragraphList) {
@@ -1010,4 +1034,149 @@ function sanitizeTemplate(template) {
     }
   });
   return clone;
+}
+
+async function handleSectionSuggestion() {
+  if (!state.editingSectionId || !originalSectionSnapshot) {
+    alert('Select a section and load it before suggesting changes.');
+    return;
+  }
+  const template = state.templates.find(t => t.id === state.editingSectionId);
+  if (!template) {
+    alert('Unable to find the section being edited.');
+    return;
+  }
+  const systemValue = (sectionSystemInput?.value || '').trim();
+  const userValue = (sectionUserInput?.value || '').trim();
+  let changed = false;
+
+  if (systemValue && normalizePromptValue(systemValue) !== normalizePromptValue(originalSectionSnapshot.systemPrompt)) {
+    template.systemPrompt = appendSuggestionBlock(
+      originalSectionSnapshot.systemPrompt || '',
+      buildPromptSuggestion('system prompt', systemValue)
+    );
+    changed = true;
+  } else {
+    template.systemPrompt = originalSectionSnapshot.systemPrompt || '';
+  }
+
+  if (userValue && normalizePromptValue(userValue) !== normalizePromptValue(originalSectionSnapshot.userPrompt)) {
+    template.userPrompt = appendSuggestionBlock(
+      originalSectionSnapshot.userPrompt || '',
+      buildPromptSuggestion('user prompt', userValue)
+    );
+    changed = true;
+  } else {
+    template.userPrompt = originalSectionSnapshot.userPrompt || '';
+  }
+
+  if (!changed) {
+    alert('No edits to convert into suggestions.');
+    return;
+  }
+
+  try {
+    await saveTemplate(template);
+    alert('Suggestions saved as inline annotations for this section.');
+    resetSectionForm();
+    fetchTemplates();
+  } catch (error) {
+    // saveTemplate already alerts on failure
+  }
+}
+
+async function handleParagraphSuggestion() {
+  if (!state.editingSubsection || !originalSubsectionSnapshot) {
+    alert('Select a subsection to suggest changes.');
+    return;
+  }
+  const template = state.templates.find(t => t.id === state.editingSubsection.templateId);
+  if (!template || !Array.isArray(template.subsections)) {
+    alert('Unable to find the subsection being edited.');
+    return;
+  }
+  const subsection = template.subsections.find(sub => sub.id === state.editingSubsection.subsectionId);
+  if (!subsection) {
+    alert('Unable to find the subsection being edited.');
+    return;
+  }
+
+  const headerValue = (paragraphHeaderInput?.value || '').trim();
+  const taskValue = (paragraphTaskInput?.value || '').trim();
+  const styleValue = (paragraphStyleInput?.value || '').trim();
+
+  const originalTask = originalSubsectionSnapshot.detailTaskDescription || originalSubsectionSnapshot.prompt || '';
+  const originalStyle = originalSubsectionSnapshot.styleQuery || '';
+  const originalTitle = originalSubsectionSnapshot.title || '';
+
+  const detailSuggestions = [];
+  if (headerValue && normalizePromptValue(headerValue) !== normalizePromptValue(originalTitle)) {
+    detailSuggestions.push(buildPromptSuggestion('header', headerValue));
+  }
+  if (taskValue && normalizePromptValue(taskValue) !== normalizePromptValue(originalTask)) {
+    detailSuggestions.push(buildPromptSuggestion('task', taskValue));
+  }
+  let changed = detailSuggestions.length > 0;
+  if (detailSuggestions.length > 0) {
+    const combined = detailSuggestions.join('\n');
+    const updatedDescription = appendSuggestionBlock(originalTask, combined);
+    subsection.detailTaskDescription = updatedDescription;
+    subsection.prompt = updatedDescription;
+  } else {
+    subsection.detailTaskDescription = originalTask;
+    subsection.prompt = originalTask;
+  }
+
+  if (styleValue && normalizePromptValue(styleValue) !== normalizePromptValue(originalStyle)) {
+    subsection.styleQuery = appendSuggestionBlock(originalStyle, buildPromptSuggestion('style', styleValue));
+    changed = true;
+  } else {
+    subsection.styleQuery = originalStyle;
+  }
+
+  subsection.title = originalTitle;
+
+  if (!changed) {
+    alert('No edits to convert into suggestions.');
+    return;
+  }
+
+  try {
+    await saveTemplate(template);
+    alert('Subsection suggestions saved as inline annotations.');
+    resetParagraphForm();
+    fetchTemplates();
+  } catch (error) {
+    // saveTemplate handles alerting
+  }
+}
+
+function appendSuggestionBlock(baseText, suggestion) {
+  if (!suggestion) return baseText || '';
+  if (!baseText) return suggestion;
+  return `${baseText}\n\n${suggestion}`;
+}
+
+function buildPromptSuggestion(label, value) {
+  const trimmed = (value || '').trim();
+  const limited = trimmed.length > 1200 ? `${trimmed.slice(0, 1200)}…` : trimmed;
+  return `[Suggestion for ${label}: ${limited}]`;
+}
+
+function normalizePromptValue(value) {
+  return (value || '').trim();
+}
+
+function formatAnnotatedPromptText(value) {
+  if (!value) return 'Not set';
+  return escapePromptHtml(value).replace(/\[([^\]]+)\]/g, (match) => `<span class="inline-annotation">${match}</span>`);
+}
+
+function escapePromptHtml(value) {
+  return (value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

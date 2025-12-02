@@ -511,12 +511,20 @@ a:hover {
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .draft-actions {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+}
+
+.draft-edit-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .draft-content {
@@ -557,6 +565,18 @@ a:hover {
 
 .draft-section__body p {
   color: var(--text-muted);
+}
+
+.draft-section--editing textarea {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.75rem;
+  resize: vertical;
 }
 
 .selection-toolbar {

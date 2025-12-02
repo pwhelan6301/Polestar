@@ -52,6 +52,19 @@ def _fetch_draft_by_id(container, draft_id: str) -> Optional[Dict[str, Any]]:
     return results[0] if results else None
 
 
+def _get_draft_partition_key(draft: Dict[str, Any]) -> Optional[str]:
+    """
+    Drafts in Cosmos DB are partitioned by their document type (`/doctype`).
+    We have historically written this field as `docType`, `doc_type`, or `doctype`,
+    so attempt the variations before giving up.
+    """
+    for key in ("docType", "doc_type", "doctype"):
+        value = draft.get(key)
+        if value:
+            return value
+    return None
+
+
 def _slugify(value: str) -> str:
     normalized = re.sub(r"[^a-z0-9]+", "-", value.strip().lower())
     normalized = re.sub(r"-{2,}", "-", normalized).strip("-")
@@ -330,7 +343,7 @@ def draft_detail(req: func.HttpRequest) -> func.HttpResponse:
         except ValueError:
             return _json_response({"error": "Invalid JSON body."}, status_code=400)
 
-        allowed_fields = {"status", "annotations"}
+        allowed_fields = {"status", "annotations", "sections", "content"}
         has_change = False
         for key, value in updates.items():
             if key in allowed_fields:
@@ -351,7 +364,13 @@ def draft_detail(req: func.HttpRequest) -> func.HttpResponse:
         return _json_response({"message": "Draft updated.", "id": draft_id})
 
     if req.method == "DELETE":
-        partition_value = draft.get("docType") or draft.get("sector") or draft_id
+        partition_value = _get_draft_partition_key(draft)
+        if not partition_value:
+            logging.error("Draft %s missing docType/doctype partition key; cannot delete.", draft_id)
+            return _json_response(
+                {"error": "Draft is missing docType/doctype partition key; cannot delete."},
+                status_code=500
+            )
         try:
             container.delete_item(item=draft_id, partition_key=partition_value)
         except Exception as exc:
