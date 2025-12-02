@@ -567,6 +567,9 @@ a:hover {
   border-radius: 999px;
   padding: 0.25rem 0.75rem;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .selection-toolbar button {
@@ -580,6 +583,11 @@ a:hover {
 
 .selection-toolbar button:hover {
   color: var(--accent);
+}
+
+.inline-annotation {
+  color: #c49bff;
+  font-weight: 600;
 }
 
 /* CLIENT REGISTRY */

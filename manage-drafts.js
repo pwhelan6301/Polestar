@@ -49,6 +49,7 @@ const filterStatusSelect = document.getElementById('filter-draft-status');
 const filterSearchInput = document.getElementById('filter-draft-search');
 const selectionToolbar = document.getElementById('selection-toolbar');
 const selectionAddNoteBtn = document.getElementById('selection-add-note');
+const selectionInlineBtn = document.getElementById('selection-inline-note');
 let currentSelectionData = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -179,6 +180,10 @@ function attachDetailListeners() {
 
   if (selectionAddNoteBtn) {
     selectionAddNoteBtn.addEventListener('click', handleSelectionNote);
+  }
+
+  if (selectionInlineBtn) {
+    selectionInlineBtn.addEventListener('click', handleInlineAnnotation);
   }
 
   if (draftDeleteBtn) {
@@ -414,7 +419,8 @@ function formatDraftParagraphs(text) {
   if (!safe) {
     return '<p class="field-hint">No content available for this section.</p>';
   }
-  return safe
+  const annotated = highlightInlineAnnotations(safe);
+  return annotated
     .split(/\n{2,}/)
     .map(block => `<p>${block.replace(/\n/g, '<br>')}</p>`)
     .join('');
@@ -441,6 +447,7 @@ function buildWordDocument(draft) {
           h4 { margin-bottom: 0.25rem; }
           section { margin-bottom: 1.25rem; }
           p { margin: 0 0 0.75rem; }
+          .inline-annotation { color: #7a3cff; font-weight: bold; }
         </style>
       </head>
       <body>
@@ -471,6 +478,10 @@ function escapeAttribute(value) {
   return escapeHtml(value).replace(/`/g, '&#96;');
 }
 
+function highlightInlineAnnotations(value) {
+  return value.replace(/\[([^\]]+)\]/g, (match) => `<span class="inline-annotation">${match}</span>`);
+}
+
 function getSectionTitleFromNode(node) {
   if (!node) return '';
   let current = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
@@ -495,7 +506,8 @@ function handleSelectionChange() {
     hideSelectionToolbar();
     return;
   }
-  const snippet = selection.toString().trim();
+  const rawSnippet = selection.toString();
+  const snippet = rawSnippet.trim();
   if (!snippet) {
     hideSelectionToolbar();
     return;
@@ -512,6 +524,7 @@ function handleSelectionChange() {
   selectionToolbar.style.left = `${Math.max(window.scrollX + 16, left)}px`;
   currentSelectionData = {
     text: snippet,
+    rawText: rawSnippet,
     section: getSectionTitleFromNode(range.commonAncestorContainer)
   };
 }
@@ -521,6 +534,39 @@ function hideSelectionToolbar() {
     selectionToolbar.hidden = true;
   }
   currentSelectionData = null;
+}
+
+function handleInlineAnnotation() {
+  const draft = getSelectedDraft();
+  if (!draft || !currentSelectionData) {
+    hideSelectionToolbar();
+    return;
+  }
+  const suggestion = window.prompt('Enter the inline note you want to add (will appear in square brackets):');
+  if (!suggestion) {
+    hideSelectionToolbar();
+    return;
+  }
+  const trimmedSuggestion = suggestion.trim();
+  if (!trimmedSuggestion) {
+    hideSelectionToolbar();
+    return;
+  }
+  const note = `[${trimmedSuggestion}]`;
+  const selectionText = currentSelectionData.rawText || currentSelectionData.text || '';
+  const trimmedSelection = currentSelectionData.text || '';
+  const sectionTitle = currentSelectionData.section;
+
+  const updated = applyInlineNoteToDraft(draft, selectionText, trimmedSelection, note, sectionTitle);
+  if (!updated) {
+    alert('Unable to insert the inline note at the selected location. Try selecting a smaller portion of text.');
+    hideSelectionToolbar();
+    return;
+  }
+
+  renderDraftDetail();
+  showStatusMessage('Inline note inserted. Remember to save annotations or export if needed.', 'success');
+  hideSelectionToolbar();
 }
 
 function handleSelectionNote() {
@@ -545,6 +591,54 @@ function handleSelectionNote() {
   draftAnnotations.dispatchEvent(new Event('input'));
   showStatusMessage('Annotation added. Click Save annotations to persist.', 'success');
   hideSelectionToolbar();
+}
+
+function applyInlineNoteToDraft(draft, rawSelectionText, trimmedSelectionText, note, sectionTitle) {
+  const insertIntoText = (text) => {
+    if (!text) {
+      return note;
+    }
+    const candidates = [rawSelectionText, trimmedSelectionText].filter(Boolean);
+    for (const candidate of candidates) {
+      const idx = candidate ? text.indexOf(candidate) : -1;
+      if (idx !== -1) {
+        const insertPos = idx + candidate.length;
+        const before = text.slice(0, insertPos);
+        const after = text.slice(insertPos);
+        const needsSpace = before.endsWith(' ') ? '' : ' ';
+        return `${before}${needsSpace}${note}${after}`;
+      }
+    }
+    const joiner = text.endsWith(' ') ? '' : ' ';
+    return `${text}${joiner}${note}`;
+  };
+
+  let updated = false;
+  if (Array.isArray(draft.sections) && draft.sections.length > 0) {
+    const targetSection = sectionTitle
+      ? draft.sections.find(section => (section.title || '').trim() === sectionTitle.trim())
+      : draft.sections[0];
+    if (targetSection) {
+      const existing = targetSection.body || targetSection.content || '';
+      const nextValue = insertIntoText(existing);
+      if (nextValue !== existing) {
+        targetSection.body = nextValue;
+        targetSection.content = nextValue;
+        updated = true;
+      }
+    }
+  }
+
+  if (!updated) {
+    const existing = draft.content || '';
+    const nextValue = insertIntoText(existing);
+    if (nextValue !== existing) {
+      draft.content = nextValue;
+      updated = true;
+    }
+  }
+
+  return updated;
 }
 
 async function deleteDraftFromServer(draftId) {
