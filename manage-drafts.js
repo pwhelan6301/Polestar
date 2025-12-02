@@ -46,6 +46,9 @@ const filterSectorSelect = document.getElementById('filter-draft-sector');
 const filterClientInput = document.getElementById('filter-draft-client');
 const filterStatusSelect = document.getElementById('filter-draft-status');
 const filterSearchInput = document.getElementById('filter-draft-search');
+const selectionToolbar = document.getElementById('selection-toolbar');
+const selectionAddNoteBtn = document.getElementById('selection-add-note');
+let currentSelectionData = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   populateFilters();
@@ -138,8 +141,9 @@ function attachDetailListeners() {
   if (draftCopyBtn) {
     draftCopyBtn.addEventListener('click', () => {
       const draft = getSelectedDraft();
-      if (!draft || !draft.content) return;
+      if (!draft) return;
       const text = renderDraftText(draft);
+      if (!text) return;
       navigator.clipboard.writeText(text).then(() => {
         showStatusMessage('Draft copied to clipboard.', 'success');
       }).catch(() => {
@@ -151,15 +155,29 @@ function attachDetailListeners() {
   if (draftExportBtn) {
     draftExportBtn.addEventListener('click', () => {
       const draft = getSelectedDraft();
-      if (!draft || !draft.content) return;
-      const blob = new Blob([renderDraftText(draft)], { type: 'text/plain' });
+      if (!draft) return;
+      const htmlDocument = buildWordDocument(draft);
+      const blob = new Blob([htmlDocument], { type: 'application/msword' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${draft.operationID || draft.id || 'draft'}.txt`;
+      link.download = `${slugifyFilename(draft.operationID || draft.id || 'draft')}.doc`;
       link.click();
       URL.revokeObjectURL(url);
     });
+  }
+
+  if (draftContentEl) {
+    ['mouseup', 'keyup'].forEach(eventName => {
+      draftContentEl.addEventListener(eventName, handleSelectionChange);
+    });
+    draftContentEl.addEventListener('scroll', hideSelectionToolbar);
+  }
+
+  document.addEventListener('scroll', hideSelectionToolbar, true);
+
+  if (selectionAddNoteBtn) {
+    selectionAddNoteBtn.addEventListener('click', handleSelectionNote);
   }
 }
 
@@ -222,6 +240,7 @@ function renderDrafts() {
 }
 
 function renderDraftDetail() {
+  hideSelectionToolbar();
   const draft = getSelectedDraft();
   if (!draft) {
     if (draftMetaEl) draftMetaEl.innerHTML = '<p>Select a draft from the left to see its content.</p>';
@@ -334,15 +353,13 @@ function showStatusMessage(message, type) {
 
 function renderDraftContent(draft) {
   if (Array.isArray(draft.sections) && draft.sections.length > 0) {
-    return draft.sections.map(section => `
-      <section>
-        <h4>${section.title || 'Untitled section'}</h4>
-        <p>${(section.body || section.content || '').replace(/\n/g, '<br>')}</p>
-      </section>
-    `).join('');
+    return draft.sections.map(renderDraftSection).join('');
   }
   if (typeof draft.content === 'string') {
-    return `<p>${draft.content.replace(/\n/g, '<br>')}</p>`;
+    return renderDraftSection({
+      title: draft.operationID || draft.docType || 'Draft',
+      body: draft.content
+    });
   }
   return '<p class="field-hint">No content available for this draft.</p>';
 }
@@ -354,11 +371,157 @@ function renderDraftText(draft) {
   return draft.content || '';
 }
 
+function renderDraftSection(section) {
+  const title = section?.title || 'Untitled section';
+  const bodyHtml = formatDraftParagraphs(section?.body || section?.content || '');
+  return `
+    <section class="draft-section" data-section-title="${escapeAttribute(title)}">
+      <div class="draft-section__header">
+        <h4>${escapeHtml(title)}</h4>
+      </div>
+      <div class="draft-section__body">
+        ${bodyHtml}
+      </div>
+    </section>
+  `;
+}
+
+function formatDraftParagraphs(text) {
+  const safe = escapeHtml(text || '');
+  if (!safe) {
+    return '<p class="field-hint">No content available for this section.</p>';
+  }
+  return safe
+    .split(/\n{2,}/)
+    .map(block => `<p>${block.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+}
+
 function formatDate(dateString) {
   if (!dateString) return 'Unknown';
   const date = new Date(dateString);
   if (Number.isNaN(date.getTime())) return dateString;
   return date.toLocaleString();
+}
+
+function buildWordDocument(draft) {
+  const bodyMarkup = renderDraftContent(draft);
+  const title = escapeHtml(draft.operationID || draft.id || 'Draft document');
+  return `
+    <!DOCTYPE html>
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="utf-8" />
+        <title>${title}</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #222; }
+          h4 { margin-bottom: 0.25rem; }
+          section { margin-bottom: 1.25rem; }
+          p { margin: 0 0 0.75rem; }
+        </style>
+      </head>
+      <body>
+        ${bodyMarkup}
+      </body>
+    </html>
+  `;
+}
+
+function slugifyFilename(value) {
+  return (value || 'draft')
+    .toString()
+    .trim()
+    .replace(/[^\w.-]+/g, '_')
+    .replace(/_+/g, '_');
+}
+
+function escapeHtml(value) {
+  return (value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replace(/`/g, '&#96;');
+}
+
+function getSectionTitleFromNode(node) {
+  if (!node) return '';
+  let current = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+  while (current && current !== draftContentEl) {
+    if (current.classList && current.classList.contains('draft-section')) {
+      return current.dataset.sectionTitle || current.querySelector('h4')?.textContent || '';
+    }
+    current = current.parentElement;
+  }
+  return '';
+}
+
+function handleSelectionChange() {
+  if (!draftContentEl || !selectionToolbar) return;
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    hideSelectionToolbar();
+    return;
+  }
+  const range = selection.getRangeAt(0);
+  if (!draftContentEl.contains(range.commonAncestorContainer)) {
+    hideSelectionToolbar();
+    return;
+  }
+  const snippet = selection.toString().trim();
+  if (!snippet) {
+    hideSelectionToolbar();
+    return;
+  }
+
+  const rect = range.getBoundingClientRect();
+  selectionToolbar.hidden = false;
+  const toolbarWidth = selectionToolbar.offsetWidth || 160;
+  const left = Math.min(
+    window.scrollX + rect.left,
+    window.scrollX + window.innerWidth - toolbarWidth - 16
+  );
+  selectionToolbar.style.top = `${rect.bottom + window.scrollY + 10}px`;
+  selectionToolbar.style.left = `${Math.max(window.scrollX + 16, left)}px`;
+  currentSelectionData = {
+    text: snippet,
+    section: getSectionTitleFromNode(range.commonAncestorContainer)
+  };
+}
+
+function hideSelectionToolbar() {
+  if (selectionToolbar) {
+    selectionToolbar.hidden = true;
+  }
+  currentSelectionData = null;
+}
+
+function handleSelectionNote() {
+  if (!currentSelectionData || !draftAnnotations) {
+    hideSelectionToolbar();
+    return;
+  }
+  const suggestion = window.prompt('Describe your suggested change for the selected text:');
+  if (!suggestion) {
+    hideSelectionToolbar();
+    return;
+  }
+  const parts = [];
+  if (currentSelectionData.section) {
+    parts.push(`Section: ${currentSelectionData.section}`);
+  }
+  parts.push(`Selection: "${currentSelectionData.text}"`);
+  parts.push(`Suggestion: ${suggestion.trim()}`);
+  const entry = parts.join('\n');
+  const existing = draftAnnotations.value.trim();
+  draftAnnotations.value = existing ? `${existing}\n\n${entry}` : entry;
+  draftAnnotations.dispatchEvent(new Event('input'));
+  showStatusMessage('Annotation added. Click Save annotations to persist.', 'success');
+  hideSelectionToolbar();
 }
 
 function getPlaceholderDrafts() {

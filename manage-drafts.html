@@ -30,9 +30,9 @@
       </p>
     </section>
 
-    <section class="layout">
-      <!-- LEFT: DRAFT LIST -->
-      <section class="card">
+    <section class="layout drafts-layout">
+      <!-- DRAFT LIST / FILTERS -->
+      <section class="card draft-list-card">
         <h2>Draft inbox</h2>
         <div class="field-row" style="flex-wrap: wrap; gap: 1rem;">
           <div class="field-group">
@@ -69,8 +69,8 @@
         <div id="draft-list" class="item-list"></div>
       </section>
 
-      <!-- RIGHT: DRAFT DETAIL -->
-      <section class="card" id="draft-detail">
+      <!-- FULL-WIDTH DRAFT DETAIL -->
+      <section class="card draft-detail-card" id="draft-detail">
         <h2>Draft detail</h2>
         <div id="draft-meta" class="draft-meta">
           <p>Select a draft from the left to see its content.</p>
@@ -110,6 +110,10 @@
       </section>
     </section>
   </main>
+
+  <div id="selection-toolbar" class="selection-toolbar" hidden>
+    <button type="button" id="selection-add-note">Add annotation</button>
+  </div>
 
   <footer class="footer">
     <span>© Polestar CF LLP</span>

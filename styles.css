@@ -166,6 +166,19 @@ body {
   gap: 1.5rem;
 }
 
+.layout.drafts-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.draft-list-card,
+.draft-detail-card {
+  width: 100%;
+}
+
+.draft-detail-card {
+  margin-top: 1.5rem;
+}
+
 .form-card h2,
 .result-card h2 {
   margin-top: 0;
@@ -479,7 +492,7 @@ a:hover {
 .draft-body {
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  padding: 1rem;
+  padding: 1.5rem;
   background: rgba(0, 0, 0, 0.2);
   margin-bottom: 1.25rem;
 }
@@ -498,22 +511,66 @@ a:hover {
 }
 
 .draft-content {
-  max-height: 45vh;
-  overflow: auto;
-  font-size: 0.95rem;
-  line-height: 1.6;
+  max-height: none;
+  min-height: 420px;
+  overflow: visible;
+  font-size: 1rem;
+  line-height: 1.7;
   color: var(--text-muted);
-  white-space: pre-wrap;
+  white-space: normal;
 }
 
 .draft-content h4 {
-  margin: 1rem 0 0.5rem;
-  font-size: 1rem;
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
   color: var(--text-main);
 }
 
 .draft-content p {
   margin: 0 0 0.5rem;
+}
+
+.draft-section {
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.draft-section:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.draft-section__header {
+  margin-bottom: 0.5rem;
+}
+
+.draft-section__body p {
+  color: var(--text-muted);
+}
+
+.selection-toolbar {
+  position: absolute;
+  z-index: 1500;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+}
+
+.selection-toolbar button {
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.2rem 0;
+}
+
+.selection-toolbar button:hover {
+  color: var(--accent);
 }
 
 /* CLIENT REGISTRY */
