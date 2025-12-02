@@ -85,13 +85,28 @@
             </div>
             <div class="field-group">
               <label for="clientName">Client / project name</label>
-              <input
-                type="text"
+              <select
                 id="clientName"
                 name="clientName"
-                placeholder=""
                 autocomplete="off"
-              />
+              >
+                <option value="">Select client…</option>
+              </select>
+              <p class="field-hint">
+                Pick a saved client for consistent naming. Choose <em>Add client…</em> to register a new one.
+              </p>
+              <div class="client-adder" id="clientName-adder" hidden>
+                <input
+                  type="text"
+                  id="clientName-new"
+                  placeholder="Enter a new client / project name"
+                  aria-label="New client name"
+                />
+                <div class="client-adder__actions">
+                  <button type="button" id="clientName-save">Save client</button>
+                  <button type="button" id="clientName-cancel" class="link-ghost">Cancel</button>
+                </div>
+              </div>
             </div>
             <div class="field-group">
               <label for="formId">Form / deal ID (optional)</label>
@@ -243,6 +258,7 @@ No request yet. Your request payload will appear here before we send it to the b
     </a>
   </footer>
 
+  <script src="client-registry.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

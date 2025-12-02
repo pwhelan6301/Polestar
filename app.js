@@ -140,6 +140,12 @@ function initForm() {
   const docTypeSelect = form.docType;
   const sectionSelect = form.sectionOrFocus;
   const sectorSelect = form.sector;
+  const clientSelect = form.clientName;
+  const addClientWrapper = document.getElementById('clientName-adder');
+  const addClientInput = document.getElementById('clientName-new');
+  const addClientSave = document.getElementById('clientName-save');
+  const addClientCancel = document.getElementById('clientName-cancel');
+  const ADD_CLIENT_OPTION = (window.ClientRegistry && window.ClientRegistry.ADD_OPTION_VALUE) || '__add_client__';
   const paragraphSelectionDiv = document.createElement('div');
   paragraphSelectionDiv.id = 'paragraph-selection-div';
   paragraphSelectionDiv.className = 'field-group';
@@ -162,6 +168,108 @@ function initForm() {
   sectionSelect.parentNode.parentNode.insertBefore(paragraphSelectionDiv, sectionSelect.parentNode.nextSibling); // Insert after the section select field-group
 
   let currentTemplates = [];
+  let clientOptions = [];
+
+  function populateClientSelect(preselectValue = '') {
+    if (!clientSelect) return;
+    const desiredValue = preselectValue || (clientSelect.value === ADD_CLIENT_OPTION ? '' : clientSelect.value);
+    clientSelect.innerHTML = '<option value="">Select client…</option>';
+    clientOptions.forEach(client => {
+      if (!client?.name) return;
+      const option = document.createElement('option');
+      option.value = client.name;
+      option.textContent = client.name;
+      clientSelect.appendChild(option);
+    });
+    const addOption = document.createElement('option');
+    addOption.value = ADD_CLIENT_OPTION;
+    addOption.textContent = 'Add client…';
+    clientSelect.appendChild(addOption);
+    if (desiredValue) {
+      const exists = clientOptions.some(client => client.name === desiredValue);
+      if (exists) {
+        clientSelect.value = desiredValue;
+      } else {
+        const legacyOption = document.createElement('option');
+        legacyOption.value = desiredValue;
+        legacyOption.textContent = desiredValue;
+        clientSelect.insertBefore(legacyOption, addOption);
+        clientSelect.value = desiredValue;
+      }
+    }
+  }
+
+  async function loadClients() {
+    if (!clientSelect || !window.ClientRegistry) {
+      populateClientSelect();
+      return;
+    }
+    try {
+      clientOptions = await window.ClientRegistry.fetchAll();
+    } catch (error) {
+      console.warn('Failed to load client registry', error);
+      clientOptions = [];
+    }
+    populateClientSelect();
+  }
+
+  function showClientAdder() {
+    if (!addClientWrapper) return;
+    addClientWrapper.hidden = false;
+    if (addClientInput) addClientInput.focus();
+  }
+
+  function hideClientAdder(resetSelect = false) {
+    if (!addClientWrapper) return;
+    addClientWrapper.hidden = true;
+    if (addClientInput) addClientInput.value = '';
+    if (resetSelect && clientSelect) {
+      clientSelect.value = '';
+    }
+  }
+
+  if (clientSelect) {
+    clientSelect.addEventListener('change', () => {
+      if (clientSelect.value === ADD_CLIENT_OPTION) {
+        showClientAdder();
+      } else {
+        hideClientAdder();
+      }
+    });
+  }
+
+  if (addClientSave) {
+    addClientSave.addEventListener('click', async () => {
+      const newName = (addClientInput?.value || '').trim();
+      if (!newName) {
+        alert('Please enter a client name before saving.');
+        return;
+      }
+      if (!window.ClientRegistry) {
+        alert('Client registry is unavailable.');
+        return;
+      }
+      addClientSave.disabled = true;
+      try {
+        const added = await window.ClientRegistry.addClient(newName);
+        clientOptions = window.ClientRegistry.getCached();
+        populateClientSelect(added?.name || newName);
+        hideClientAdder();
+      } catch (error) {
+        console.error('Unable to save new client', error);
+        alert(error.message || 'Failed to save new client.');
+      } finally {
+        addClientSave.disabled = false;
+      }
+    });
+  }
+
+  if (addClientCancel) {
+    addClientCancel.addEventListener('click', () => hideClientAdder(true));
+  }
+
+  populateClientSelect();
+  loadClients();
 
 
   function populateDocTypeOptions() {
@@ -348,7 +456,11 @@ function initForm() {
     }
 
     const formIdRaw = form.formId.value.trim();
-    const clientName = form.clientName.value.trim();
+    let clientName = form.clientName.value;
+    if (clientName === ADD_CLIENT_OPTION) {
+      clientName = '';
+    }
+    clientName = clientName.trim();
     const taskDescription = form.taskDescription.value.trim();
     const styleQuery = form.styleQuery.value.trim();
     const extraContext = form.extraContext.value.trim();

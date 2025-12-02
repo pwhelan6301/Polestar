@@ -2,9 +2,11 @@ import azure.functions as func
 import logging
 import json
 import os
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from azure.cosmos import CosmosClient
+from azure.cosmos.exceptions import CosmosResourceNotFoundError
 
 COSMOS_ENDPOINT = os.getenv("COSMOS_ENDPOINT")
 COSMOS_KEY = os.getenv("COSMOS_KEY")
@@ -12,6 +14,9 @@ PROMPT_DB_NAME = os.getenv("COSMOS_PROMPT_DB", "Prompt")
 PROMPT_CONTAINER_NAME = os.getenv("COSMOS_PROMPT_CONTAINER", "Templates")
 DRAFTS_DB_NAME = os.getenv("COSMOS_DRAFTS_DB", "DocumentDrafts")
 DRAFTS_CONTAINER_NAME = os.getenv("COSMOS_DRAFTS_CONTAINER", "Drafts")
+
+CLIENT_REGISTRY_PARTITION_KEY = os.getenv("CLIENT_REGISTRY_PARTITION_KEY", "__clients__")
+CLIENT_REGISTRY_ITEM_ID = os.getenv("CLIENT_REGISTRY_ITEM_ID", "client-registry")
 
 app = func.FunctionApp()
 
@@ -46,6 +51,65 @@ def _fetch_draft_by_id(container, draft_id: str) -> Optional[Dict[str, Any]]:
     ))
     return results[0] if results else None
 
+
+def _slugify(value: str) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", "-", value.strip().lower())
+    normalized = re.sub(r"-{2,}", "-", normalized).strip("-")
+    return normalized or "client"
+
+
+def _normalize_client_name(value: str) -> str:
+    return " ".join(value.split())
+
+
+def _get_client_registry(container) -> Dict[str, Any]:
+    try:
+        registry = container.read_item(
+            item=CLIENT_REGISTRY_ITEM_ID,
+            partition_key=CLIENT_REGISTRY_PARTITION_KEY
+        )
+    except CosmosResourceNotFoundError:
+        registry = {
+            "id": CLIENT_REGISTRY_ITEM_ID,
+            "sector": CLIENT_REGISTRY_PARTITION_KEY,
+            "type": "ClientRegistry",
+            "clients": [],
+            "updatedAt": datetime.utcnow().isoformat()
+        }
+        container.create_item(registry)
+    if "clients" not in registry or not isinstance(registry["clients"], list):
+        registry["clients"] = []
+    return registry
+
+
+def _save_client_registry(container, registry: Dict[str, Any]) -> Dict[str, Any]:
+    registry["updatedAt"] = datetime.utcnow().isoformat()
+    container.upsert_item(registry)
+    return registry
+
+
+def _upsert_client(container, name: str) -> Dict[str, Any]:
+    normalized = _normalize_client_name(name)
+    if not normalized:
+        raise ValueError("Client name cannot be empty.")
+    slug = _slugify(normalized)
+    registry = _get_client_registry(container)
+    clients: List[Dict[str, Any]] = registry.get("clients", [])
+    existing = next((c for c in clients if c.get("slug") == slug), None)
+    if existing:
+        return existing
+    new_client = {
+        "id": slug,
+        "name": normalized,
+        "slug": slug,
+        "createdAt": datetime.utcnow().isoformat()
+    }
+    clients.append(new_client)
+    clients.sort(key=lambda c: c.get("name", "").lower())
+    registry["clients"] = clients
+    _save_client_registry(container, registry)
+    return new_client
+
 # --- NEW: Add a simple "hello" endpoint for diagnostics ---
 @app.route(route="hello", auth_level=func.AuthLevel.ANONYMOUS)
 def hello(req: func.HttpRequest) -> func.HttpResponse:
@@ -54,6 +118,37 @@ def hello(req: func.HttpRequest) -> func.HttpResponse:
         "Hello from the API! If you see this, the API is deployed and routing is working.",
         status_code=200
     )
+
+
+@app.route(route="clients", methods=["GET", "POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def clients_registry(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Processing client registry request for /api/clients.')
+    try:
+        container = _get_cosmos_container(PROMPT_DB_NAME, PROMPT_CONTAINER_NAME)
+    except ValueError as err:
+        logging.error(str(err))
+        return _json_response({"error": str(err)}, status_code=500)
+
+    if req.method == "GET":
+        registry = _get_client_registry(container)
+        return _json_response({"clients": registry.get("clients", [])})
+
+    if req.method == "POST":
+        try:
+            payload = req.get_json()
+        except ValueError:
+            return _json_response({"error": "Invalid JSON body."}, status_code=400)
+        name = (payload.get("name") or "").strip()
+        if not name:
+            return _json_response({"error": "Client name is required."}, status_code=400)
+        try:
+            client = _upsert_client(container, name)
+        except ValueError as exc:
+            return _json_response({"error": str(exc)}, status_code=400)
+        registry = _get_client_registry(container)
+        return _json_response({"client": client, "clients": registry.get("clients", [])})
+
+    return _json_response({"error": "Method not supported"}, status_code=405)
 
 
 @app.route(route="prompts", auth_level=func.AuthLevel.ANONYMOUS)

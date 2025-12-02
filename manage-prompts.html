@@ -95,10 +95,24 @@
           </div>
           <div class="field-group">
             <label for="section-client">Client / use case (optional)</label>
-            <input type="text" id="section-client" placeholder="Leave blank for the sector default" />
+            <select id="section-client">
+              <option value="">Sector template</option>
+            </select>
             <p class="field-hint">
               Give the template a name (e.g. client or scenario) when editing a branch of the sector default.
             </p>
+            <div class="client-adder" id="section-client-adder" hidden>
+              <input
+                type="text"
+                id="section-client-name"
+                placeholder="Enter a new client / use case"
+                aria-label="New client name"
+              />
+              <div class="client-adder__actions">
+                <button type="button" id="section-client-save">Save client</button>
+                <button type="button" id="section-client-cancel" class="link-ghost">Cancel</button>
+              </div>
+            </div>
           </div>
           <div class="field-group">
             <label for="section-system-prompt">System Prompt</label>
@@ -161,6 +175,32 @@
     </section>
   </main>
 
+  <div id="client-picker" class="client-picker" hidden>
+    <div class="client-picker__dialog card">
+      <h3>Select client / use case</h3>
+      <p class="field-hint">Choose an existing client or add a new one for this copy.</p>
+      <select id="client-picker-select">
+        <option value="">Select client…</option>
+      </select>
+      <div class="client-adder" id="client-picker-adder" hidden>
+        <input
+          type="text"
+          id="client-picker-input"
+          placeholder="Enter a new client / use case"
+          aria-label="New client name"
+        />
+        <div class="client-adder__actions">
+          <button type="button" id="client-picker-save">Save client</button>
+          <button type="button" id="client-picker-close-adder" class="link-ghost">Cancel</button>
+        </div>
+      </div>
+      <div class="client-picker__actions">
+        <button type="button" id="client-picker-cancel" class="link-ghost">Cancel</button>
+        <button type="button" id="client-picker-confirm">Use client</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="footer">
     <span>© Polestar CF LLP</span>
     <a href="https://polestarcf.com/" target="_blank" rel="noreferrer" class="link-muted">
@@ -168,6 +208,7 @@
     </a>
   </footer>
 
+  <script src="client-registry.js"></script>
   <script src="manage-prompts.js"></script>
 </body>
 </html>

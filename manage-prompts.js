@@ -33,6 +33,10 @@ const filterSectorSelect = document.getElementById('filter-sector');
 const sectionDocTypeSelect = document.getElementById('section-doc-type');
 const sectionSectorSelect = document.getElementById('section-sector');
 const sectionClientInput = document.getElementById('section-client');
+const sectionClientAdder = document.getElementById('section-client-adder');
+const sectionClientNameInput = document.getElementById('section-client-name');
+const sectionClientSaveButton = document.getElementById('section-client-save');
+const sectionClientCancelButton = document.getElementById('section-client-cancel');
 const sectionSystemInput = document.getElementById('section-system-prompt');
 const sectionUserInput = document.getElementById('section-user-prompt');
 const sectionSubmitButton = document.getElementById('section-submit-btn');
@@ -46,6 +50,266 @@ const paragraphTaskInput = document.getElementById('paragraph-task');
 const templateScopeLabel = document.getElementById('template-scope-label');
 const branchButtonsContainer = document.getElementById('branch-buttons');
 const branchPickerHint = document.getElementById('branch-picker-hint');
+const clientPickerModal = document.getElementById('client-picker');
+const clientPickerSelect = document.getElementById('client-picker-select');
+const clientPickerAdder = document.getElementById('client-picker-adder');
+const clientPickerInput = document.getElementById('client-picker-input');
+const clientPickerSaveButton = document.getElementById('client-picker-save');
+const clientPickerCloseAdder = document.getElementById('client-picker-close-adder');
+const clientPickerCancelButton = document.getElementById('client-picker-cancel');
+const clientPickerConfirmButton = document.getElementById('client-picker-confirm');
+const ADD_CLIENT_OPTION = (window.ClientRegistry && window.ClientRegistry.ADD_OPTION_VALUE) || '__add_client__';
+let clientRegistry = [];
+let clientPickerResolver = null;
+
+async function refreshClientRegistry() {
+  if (!window.ClientRegistry) {
+    clientRegistry = [];
+    populateSectionClientSelect();
+    populateClientPickerSelect();
+    return;
+  }
+  try {
+    clientRegistry = await window.ClientRegistry.fetchAll();
+  } catch (error) {
+    console.warn('Failed to load client registry', error);
+    clientRegistry = [];
+  }
+  populateSectionClientSelect();
+  populateClientPickerSelect();
+}
+
+function populateSectionClientSelect(selectedValue = '') {
+  if (!sectionClientInput) return;
+  const desiredValue = selectedValue || (sectionClientInput.value === ADD_CLIENT_OPTION ? '' : sectionClientInput.value);
+  sectionClientInput.innerHTML = '<option value=\"\">Sector template</option>';
+  clientRegistry.forEach(client => {
+    if (!client?.name) return;
+    const option = document.createElement('option');
+    option.value = client.name;
+    option.textContent = client.name;
+    sectionClientInput.appendChild(option);
+  });
+  const addOption = document.createElement('option');
+  addOption.value = ADD_CLIENT_OPTION;
+  addOption.textContent = 'Add client…';
+  sectionClientInput.appendChild(addOption);
+  if (desiredValue) {
+    const exists = clientRegistry.some(client => client.name === desiredValue);
+    if (exists) {
+      sectionClientInput.value = desiredValue;
+    } else {
+      const legacyOption = document.createElement('option');
+      legacyOption.value = desiredValue;
+      legacyOption.textContent = `${desiredValue} (legacy)`;
+      sectionClientInput.insertBefore(legacyOption, addOption);
+      sectionClientInput.value = desiredValue;
+    }
+  } else {
+    sectionClientInput.value = '';
+  }
+}
+
+function populateClientPickerSelect(selectedValue = '') {
+  if (!clientPickerSelect) return;
+  const desiredValue = selectedValue || (clientPickerSelect.value === ADD_CLIENT_OPTION ? '' : clientPickerSelect.value);
+  clientPickerSelect.innerHTML = '<option value=\"\">Select client…</option>';
+  clientRegistry.forEach(client => {
+    if (!client?.name) return;
+    const option = document.createElement('option');
+    option.value = client.name;
+    option.textContent = client.name;
+    clientPickerSelect.appendChild(option);
+  });
+  const addOption = document.createElement('option');
+  addOption.value = ADD_CLIENT_OPTION;
+  addOption.textContent = 'Add client…';
+  clientPickerSelect.appendChild(addOption);
+  if (desiredValue) {
+    const exists = clientRegistry.some(client => client.name === desiredValue);
+    if (exists) {
+      clientPickerSelect.value = desiredValue;
+    } else {
+      const fallback = document.createElement('option');
+      fallback.value = desiredValue;
+      fallback.textContent = desiredValue;
+      clientPickerSelect.insertBefore(fallback, addOption);
+      clientPickerSelect.value = desiredValue;
+    }
+  } else {
+    clientPickerSelect.value = '';
+  }
+}
+
+function showSectionClientAdder() {
+  if (!sectionClientAdder) return;
+  sectionClientAdder.hidden = false;
+  if (sectionClientNameInput) sectionClientNameInput.focus();
+}
+
+function hideSectionClientAdder(resetSelect = false) {
+  if (!sectionClientAdder) return;
+  sectionClientAdder.hidden = true;
+  if (sectionClientNameInput) sectionClientNameInput.value = '';
+  if (resetSelect && sectionClientInput) {
+    sectionClientInput.value = '';
+  }
+}
+
+function showClientPickerAdder() {
+  if (!clientPickerAdder) return;
+  clientPickerAdder.hidden = false;
+  if (clientPickerInput) clientPickerInput.focus();
+}
+
+function hideClientPickerAdder(resetSelect = false) {
+  if (!clientPickerAdder) return;
+  clientPickerAdder.hidden = true;
+  if (clientPickerInput) clientPickerInput.value = '';
+  if (resetSelect && clientPickerSelect) {
+    clientPickerSelect.value = '';
+  }
+}
+
+function openClientPicker(initialValue = '') {
+  if (!clientPickerModal) {
+    const fallback = window.prompt('Enter the client / use case name:');
+    return Promise.resolve(fallback ? fallback.trim() : null);
+  }
+  populateClientPickerSelect(initialValue);
+  clientPickerModal.hidden = false;
+  document.body.classList.add('client-picker-open');
+  if (clientPickerSelect) {
+    clientPickerSelect.focus();
+  }
+  return new Promise(resolve => {
+    clientPickerResolver = resolve;
+  });
+}
+
+function closeClientPicker(value = null) {
+  if (clientPickerModal) {
+    clientPickerModal.hidden = true;
+  }
+  document.body.classList.remove('client-picker-open');
+  hideClientPickerAdder();
+  if (clientPickerResolver) {
+    clientPickerResolver(value);
+    clientPickerResolver = null;
+  }
+}
+
+if (sectionClientInput) {
+  sectionClientInput.addEventListener('change', () => {
+    if (sectionClientInput.value === ADD_CLIENT_OPTION) {
+      showSectionClientAdder();
+    } else {
+      hideSectionClientAdder();
+    }
+  });
+}
+
+if (sectionClientSaveButton) {
+  sectionClientSaveButton.addEventListener('click', async () => {
+    const newName = (sectionClientNameInput?.value || '').trim();
+    if (!newName) {
+      alert('Enter a client / use case before saving.');
+      return;
+    }
+    if (!window.ClientRegistry) {
+      alert('Client registry is unavailable.');
+      return;
+    }
+    sectionClientSaveButton.disabled = true;
+    try {
+      const added = await window.ClientRegistry.addClient(newName);
+      clientRegistry = window.ClientRegistry.getCached();
+      populateSectionClientSelect(added?.name || newName);
+      populateClientPickerSelect(added?.name || newName);
+      hideSectionClientAdder();
+    } catch (error) {
+      console.error('Unable to save client', error);
+      alert(error.message || 'Failed to save client.');
+    } finally {
+      sectionClientSaveButton.disabled = false;
+    }
+  });
+}
+
+if (sectionClientCancelButton) {
+  sectionClientCancelButton.addEventListener('click', () => hideSectionClientAdder(true));
+}
+
+if (clientPickerSelect) {
+  clientPickerSelect.addEventListener('change', () => {
+    if (clientPickerSelect.value === ADD_CLIENT_OPTION) {
+      showClientPickerAdder();
+    } else {
+      hideClientPickerAdder();
+    }
+  });
+}
+
+if (clientPickerSaveButton) {
+  clientPickerSaveButton.addEventListener('click', async () => {
+    const newName = (clientPickerInput?.value || '').trim();
+    if (!newName) {
+      alert('Enter a client / use case before saving.');
+      return;
+    }
+    if (!window.ClientRegistry) {
+      alert('Client registry is unavailable.');
+      return;
+    }
+    clientPickerSaveButton.disabled = true;
+    try {
+      const added = await window.ClientRegistry.addClient(newName);
+      clientRegistry = window.ClientRegistry.getCached();
+      populateSectionClientSelect();
+      populateClientPickerSelect(added?.name || newName);
+      hideClientPickerAdder();
+    } catch (error) {
+      console.error('Unable to save client', error);
+      alert(error.message || 'Failed to save client.');
+    } finally {
+      clientPickerSaveButton.disabled = false;
+    }
+  });
+}
+
+if (clientPickerCloseAdder) {
+  clientPickerCloseAdder.addEventListener('click', () => hideClientPickerAdder(true));
+}
+
+if (clientPickerCancelButton) {
+  clientPickerCancelButton.addEventListener('click', () => closeClientPicker(null));
+}
+
+if (clientPickerConfirmButton) {
+  clientPickerConfirmButton.addEventListener('click', () => {
+    const value = clientPickerSelect ? clientPickerSelect.value : '';
+    const trimmed = value.trim();
+    if (!trimmed || value === ADD_CLIENT_OPTION) {
+      alert('Select a client before continuing.');
+      return;
+    }
+    closeClientPicker(trimmed);
+  });
+}
+
+if (clientPickerModal) {
+  clientPickerModal.addEventListener('click', (event) => {
+    if (event.target === clientPickerModal) {
+      closeClientPicker(null);
+    }
+  });
+}
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && clientPickerModal && !clientPickerModal.hidden) {
+    closeClientPicker(null);
+  }
+});
 
 // --- API Functions ---
 
@@ -360,7 +624,10 @@ function resetSectionForm() {
     sectionSectorSelect.value = state.selectedSector || '';
     sectionSectorSelect.disabled = !state.selectedSector;
   }
-  if (sectionClientInput) sectionClientInput.value = state.selectedClient && state.selectedClient !== 'base' ? state.selectedClient : '';
+  if (sectionClientInput) {
+    const desiredClient = state.selectedClient && state.selectedClient !== 'base' ? state.selectedClient : '';
+    populateSectionClientSelect(desiredClient);
+  }
   if (sectionSubmitButton) sectionSubmitButton.textContent = 'Add Section';
   if (cancelSectionEditButton) cancelSectionEditButton.hidden = true;
 }
@@ -371,7 +638,7 @@ function populateSectionForm(template) {
   if (sectionNameInput) sectionNameInput.value = template.sectionTitle || '';
   if (sectionDocTypeSelect) sectionDocTypeSelect.value = template.docType || '';
   if (sectionSectorSelect) sectionSectorSelect.value = template.sector || '';
-  if (sectionClientInput) sectionClientInput.value = template.clientTag || '';
+  if (sectionClientInput) populateSectionClientSelect(template.clientTag || '');
   if (sectionSystemInput) sectionSystemInput.value = template.systemPrompt || '';
   if (sectionUserInput) sectionUserInput.value = template.userPrompt || '';
   if (sectionSubmitButton) sectionSubmitButton.textContent = 'Save Changes';
@@ -649,6 +916,7 @@ document.addEventListener('DOMContentLoaded', () => {
     sectionSectorSelect.value = state.selectedSector;
     sectionSectorSelect.disabled = !state.selectedSector;
   }
+  refreshClientRegistry();
   // Load templates for the default selections when the page loads
   fetchTemplates();
 });
@@ -700,13 +968,14 @@ function slugify(value) {
 
 async function copyTemplateToClient(template) {
   if (!template) return;
-  const clientName = window.prompt('Enter the client / use case name for this template copy:');
+  await refreshClientRegistry();
+  const clientName = await openClientPicker();
   if (clientName === null) {
     return;
   }
-  const trimmed = clientName.trim();
+  const trimmed = (clientName || '').trim();
   if (!trimmed) {
-    alert('Client / use case name is required to create a copy.');
+    alert('Select a client / use case to create a copy.');
     return;
   }
 

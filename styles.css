@@ -516,6 +516,57 @@ a:hover {
   margin: 0 0 0.5rem;
 }
 
+/* CLIENT REGISTRY */
+.client-adder {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  border: 1px dashed var(--border-subtle);
+  border-radius: 0.5rem;
+  background: var(--surface-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.client-adder input {
+  width: 100%;
+}
+
+.client-adder__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.client-picker {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.client-picker[hidden] {
+  display: none;
+}
+
+.client-picker__dialog {
+  width: min(420px, 90vw);
+}
+
+.client-picker__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+body.client-picker-open {
+  overflow: hidden;
+}
+
 /* FOOTER */
 .footer {
   padding: 1rem 2rem 1.25rem;
