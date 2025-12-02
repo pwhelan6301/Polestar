@@ -43,12 +43,15 @@ jobs:
     name: Deploy Function App
     steps:
       - uses: actions/checkout@v3
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
       - name: Deploy DBPipeline Azure Function App
         uses: Azure/functions-action@v1
         with:
           app-name: DBPipeline
           package: api
-          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE_DBPIPELINE }}
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
