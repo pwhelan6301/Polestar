@@ -211,7 +211,10 @@ def list_drafts(req: func.HttpRequest) -> func.HttpResponse:
 
 
 @app.route(route="drafts/{draft_id}", methods=["GET", "PATCH"], auth_level=func.AuthLevel.ANONYMOUS)
-def draft_detail(req: func.HttpRequest, draft_id: str) -> func.HttpResponse:
+def draft_detail(req: func.HttpRequest) -> func.HttpResponse:
+    draft_id = req.route_params.get("draft_id")
+    if not draft_id:
+        return _json_response({"error": "Missing draft_id in route"}, status_code=400)
     logging.info('Processing draft detail request for /api/drafts/%s', draft_id)
     try:
         container = _get_cosmos_container(DRAFTS_DB_NAME, DRAFTS_CONTAINER_NAME)
