@@ -40,6 +40,7 @@ const draftSaveBtn = document.getElementById('draft-save-btn');
 const draftStatusMsg = document.getElementById('draft-status-message');
 const draftExportBtn = document.getElementById('draft-export-btn');
 const draftCopyBtn = document.getElementById('draft-copy-btn');
+const draftDeleteBtn = document.getElementById('draft-delete-btn');
 
 const filterDocSelect = document.getElementById('filter-draft-doc');
 const filterSectorSelect = document.getElementById('filter-draft-sector');
@@ -179,6 +180,27 @@ function attachDetailListeners() {
   if (selectionAddNoteBtn) {
     selectionAddNoteBtn.addEventListener('click', handleSelectionNote);
   }
+
+  if (draftDeleteBtn) {
+    draftDeleteBtn.addEventListener('click', async () => {
+      const draft = getSelectedDraft();
+      if (!draft) return;
+      const confirmDelete = window.confirm(`Delete draft "${draft.operationID || draft.id}"? This cannot be undone.`);
+      if (!confirmDelete) return;
+      draftDeleteBtn.disabled = true;
+      try {
+        await deleteDraftFromServer(draft.id);
+        state.drafts = state.drafts.filter(d => d.id !== draft.id);
+        state.selectedDraftId = state.drafts[0]?.id || null;
+        showStatusMessage('Draft deleted.', 'success');
+        renderDrafts();
+      } catch (error) {
+        console.error('Unable to delete draft', error);
+        showStatusMessage('Failed to delete draft. Try again later.', 'error');
+        draftDeleteBtn.disabled = false;
+      }
+    });
+  }
 }
 
 async function loadDrafts() {
@@ -283,6 +305,7 @@ function updateDetailControls(enabled) {
   if (draftSaveBtn) draftSaveBtn.disabled = !enabled;
   if (draftCopyBtn) draftCopyBtn.disabled = !enabled;
   if (draftExportBtn) draftExportBtn.disabled = !enabled;
+  if (draftDeleteBtn) draftDeleteBtn.disabled = !enabled;
 }
 
 function getFilteredDrafts() {
@@ -522,6 +545,17 @@ function handleSelectionNote() {
   draftAnnotations.dispatchEvent(new Event('input'));
   showStatusMessage('Annotation added. Click Save annotations to persist.', 'success');
   hideSelectionToolbar();
+}
+
+async function deleteDraftFromServer(draftId) {
+  const response = await fetch(`/api/drafts/${encodeURIComponent(draftId)}`, {
+    method: 'DELETE'
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Failed to delete draft');
+  }
+  return response.json();
 }
 
 function getPlaceholderDrafts() {

@@ -305,7 +305,7 @@ def list_drafts(req: func.HttpRequest) -> func.HttpResponse:
     return _json_response(filtered[:limit_value])
 
 
-@app.route(route="drafts/{draft_id}", methods=["GET", "PATCH"], auth_level=func.AuthLevel.ANONYMOUS)
+@app.route(route="drafts/{draft_id}", methods=["GET", "PATCH", "DELETE"], auth_level=func.AuthLevel.ANONYMOUS)
 def draft_detail(req: func.HttpRequest) -> func.HttpResponse:
     draft_id = req.route_params.get("draft_id")
     if not draft_id:
@@ -349,5 +349,15 @@ def draft_detail(req: func.HttpRequest) -> func.HttpResponse:
             return _json_response({"error": str(exc)}, status_code=500)
 
         return _json_response({"message": "Draft updated.", "id": draft_id})
+
+    if req.method == "DELETE":
+        partition_value = draft.get("docType") or draft.get("sector") or draft_id
+        try:
+            container.delete_item(item=draft_id, partition_key=partition_value)
+        except Exception as exc:
+            logging.error("Failed to delete draft %s: %s", draft_id, exc)
+            return _json_response({"error": str(exc)}, status_code=500)
+
+        return _json_response({"message": "Draft deleted.", "id": draft_id})
 
     return _json_response({"error": "Method not supported"}, status_code=405)

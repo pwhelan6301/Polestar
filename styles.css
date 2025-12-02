@@ -351,6 +351,15 @@ a:hover {
   color: var(--text-main);
 }
 
+.link-ghost.danger {
+  color: var(--danger, #ff7a7a);
+}
+
+.link-ghost.danger:hover {
+  border-color: rgba(255, 0, 0, 0.4);
+  color: #ffb3b3;
+}
+
 .link-muted {
   color: var(--text-soft);
   font-size: 0.85rem;
