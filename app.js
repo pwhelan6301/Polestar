@@ -170,6 +170,46 @@ function initForm() {
   let currentTemplates = [];
   let clientOptions = [];
 
+  function getSelectedClientName() {
+    if (!clientSelect) return '';
+    const value = clientSelect.value;
+    if (!value || value === ADD_CLIENT_OPTION) return '';
+    return value.trim();
+  }
+
+  function normalizeValue(text) {
+    return (text || '').trim().toLowerCase();
+  }
+
+  function findTemplateForSection(sectionTitle, clientOverride = null) {
+    if (!sectionTitle) return null;
+    const sectionKey = normalizeValue(sectionTitle);
+    if (!sectionKey) return null;
+    const clientKey = normalizeValue(clientOverride !== null ? clientOverride : getSelectedClientName());
+
+    if (clientKey) {
+      const clientMatch = currentTemplates.find(
+        (template) =>
+          normalizeValue(template.sectionTitle) === sectionKey &&
+          normalizeValue(template.clientTag) === clientKey
+      );
+      if (clientMatch) {
+        return clientMatch;
+      }
+    }
+
+    const sectorMatch = currentTemplates.find(
+      (template) => normalizeValue(template.sectionTitle) === sectionKey && !normalizeValue(template.clientTag)
+    );
+    if (sectorMatch) {
+      return sectorMatch;
+    }
+
+    return (
+      currentTemplates.find((template) => normalizeValue(template.sectionTitle) === sectionKey) || null
+    );
+  }
+
   function populateClientSelect(preselectValue = '') {
     if (!clientSelect) return;
     const desiredValue = preselectValue || (clientSelect.value === ADD_CLIENT_OPTION ? '' : clientSelect.value);
@@ -211,6 +251,7 @@ function initForm() {
       clientOptions = [];
     }
     populateClientSelect();
+    renderParagraphCheckboxes(sectionSelect ? sectionSelect.value : '');
   }
 
   function showClientAdder() {
@@ -234,6 +275,7 @@ function initForm() {
         showClientAdder();
       } else {
         hideClientAdder();
+        renderParagraphCheckboxes(sectionSelect.value);
       }
     });
   }
@@ -255,6 +297,7 @@ function initForm() {
         clientOptions = window.ClientRegistry.getCached();
         populateClientSelect(added?.name || newName);
         hideClientAdder();
+        renderParagraphCheckboxes(sectionSelect.value);
       } catch (error) {
         console.error('Unable to save new client', error);
         alert(error.message || 'Failed to save new client.');
@@ -265,7 +308,10 @@ function initForm() {
   }
 
   if (addClientCancel) {
-    addClientCancel.addEventListener('click', () => hideClientAdder(true));
+    addClientCancel.addEventListener('click', () => {
+      hideClientAdder(true);
+      renderParagraphCheckboxes(sectionSelect.value);
+    });
   }
 
   populateClientSelect();
@@ -282,16 +328,46 @@ function initForm() {
     });
   }
 
+  function getSectionTitleOptions() {
+    const seen = new Set();
+    const options = [];
+    const sortedTemplates = [...currentTemplates].sort((a, b) => {
+      const aTitle = normalizeValue(a.sectionTitle);
+      const bTitle = normalizeValue(b.sectionTitle);
+      if (aTitle === bTitle) {
+        const aIsBase = !normalizeValue(a.clientTag);
+        const bIsBase = !normalizeValue(b.clientTag);
+        if (aIsBase !== bIsBase) {
+          return aIsBase ? -1 : 1;
+        }
+        return normalizeValue(a.clientTag).localeCompare(normalizeValue(b.clientTag));
+      }
+      return aTitle.localeCompare(bTitle);
+    });
+
+    sortedTemplates.forEach((template) => {
+      const title = (template.sectionTitle || '').trim();
+      if (!title) return;
+      const key = title.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      options.push(title);
+    });
+
+    return options;
+  }
+
   function populateSectionOptions() {
     sectionSelect.innerHTML = '<option value="">Select section / focus…</option>';
-    currentTemplates.forEach(template => {
+    const titleOptions = getSectionTitleOptions();
+    titleOptions.forEach((title) => {
       const option = document.createElement('option');
-      option.value = template.sectionTitle;
-      option.textContent = template.sectionTitle;
+      option.value = title;
+      option.textContent = title;
       sectionSelect.appendChild(option);
     });
     sectionSelect.value = '';
-    sectionSelect.disabled = currentTemplates.length === 0;
+    sectionSelect.disabled = titleOptions.length === 0;
   }
 
   function updateSubsectionHint(message) {
@@ -315,15 +391,19 @@ function initForm() {
       return;
     }
 
-    const template = currentTemplates.find(t => t.sectionTitle === selectedSectionName);
+    const template = findTemplateForSection(selectedSectionName);
     if (!template) {
-      updateSubsectionHint('No template found for this section.');
+      updateSubsectionHint('No template found for this section. Use Manage Prompts to add one.');
       return;
     }
 
     const subsections = Array.isArray(template.subsections) ? template.subsections : [];
     if (subsections.length === 0) {
-      updateSubsectionHint('This section has no subsections configured yet.');
+      if (template.clientTag) {
+        updateSubsectionHint('This client branch has no subsections configured yet.');
+      } else {
+        updateSubsectionHint('This section has no subsections configured yet.');
+      }
       return;
     }
 
@@ -355,7 +435,10 @@ function initForm() {
       subsectionOptions.appendChild(wrapper);
     });
 
-    updateSubsectionHint('Tick the subsections you want to include in this draft.');
+    const scopeMessage = template.clientTag
+      ? `Using client-specific branch: ${template.clientTag}.`
+      : 'Using sector template.';
+    updateSubsectionHint(`${scopeMessage} Tick the subsections you want to include in this draft.`);
 
     subsectionOptions.querySelectorAll('input[type="checkbox"]').forEach(cb => {
       cb.addEventListener('change', () => {
@@ -441,9 +524,17 @@ function initForm() {
     }
 
     const selectedSectionName = sectionSelect.value;
-    const selectedTemplate = currentTemplates.find(t => t.sectionTitle === selectedSectionName);
-    if (!selectedTemplate) {
+    if (!selectedSectionName) {
       statusEl.textContent = 'Please select a section after loading prompts.';
+      statusEl.style.color = 'var(--danger)';
+      return;
+    }
+
+    const formIdRaw = form.formId.value.trim();
+    const clientName = getSelectedClientName();
+    const selectedTemplate = findTemplateForSection(selectedSectionName, clientName);
+    if (!selectedTemplate) {
+      statusEl.textContent = 'No template found for this section/client combination.';
       statusEl.style.color = 'var(--danger)';
       return;
     }
@@ -454,13 +545,6 @@ function initForm() {
       statusEl.style.color = 'var(--danger)';
       return;
     }
-
-    const formIdRaw = form.formId.value.trim();
-    let clientName = form.clientName.value;
-    if (clientName === ADD_CLIENT_OPTION) {
-      clientName = '';
-    }
-    clientName = clientName.trim();
     const taskDescription = form.taskDescription.value.trim();
     const styleQuery = form.styleQuery.value.trim();
     const extraContext = form.extraContext.value.trim();
