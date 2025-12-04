@@ -15,7 +15,8 @@ const STATUS_LABELS = {
   new: 'New',
   in_review: 'In review',
   needs_changes: 'Needs changes',
-  approved: 'Approved'
+  approved: 'Approved',
+  archived: 'Bin / archived'
 };
 
 const state = {
@@ -357,7 +358,11 @@ function getFilteredDrafts() {
     if (state.filters.docType && draft.docType !== state.filters.docType) return false;
     if (state.filters.sector && draft.sector !== state.filters.sector) return false;
     if (state.filters.client && !matchesText(draft.client, state.filters.client)) return false;
-    if (state.filters.status && draft.status !== state.filters.status) return false;
+    if (state.filters.status) {
+      if (draft.status !== state.filters.status) return false;
+    } else if (draft.status === 'archived') {
+      return false;
+    }
     if (state.filters.search && !matchesAnyField(draft, state.filters.search)) return false;
     return true;
   });
